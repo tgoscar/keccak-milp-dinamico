@@ -97,7 +97,7 @@ de certificación. La comparación es en sí misma un resultado metodológico.
 Requiere Python 3.9 o superior.
 
 ```bash
-git clone https://github.com/USUARIO/keccak-milp-dinamico.git
+git clone https://github.com/tgoscar/keccak-milp-dinamico.git
 cd keccak-milp-dinamico
 pip install -r requirements.txt
 ```
