@@ -8,21 +8,22 @@
 
 ## Tabla principal
 
-Cinco de los seis casos tienen óptimo exacto certificado por CP-SAT.
+Los seis casos tienen óptimo exacto certificado por CP-SAT.
 
 | $z$ | $R$ | Mínimo | Por ronda | Estado | Tiempo |
 |:---:|:---:|:---:|:---:|---|:---:|
-| 4 | 1 | **1** | 1 | `OPTIMAL` | 0,8 s |
-| 4 | 2 | **4** | 2,2 | `OPTIMAL` | 2,9 s |
-| 4 | 3 | **9** | 2,4,3 | `OPTIMAL` | 68 s |
-| 8 | 1 | **1** | 1 | `OPTIMAL` | 2,1 s |
-| 8 | 2 | **4** | 2,2 | `OPTIMAL` | 9,2 s |
-| 8 | 3 | $[8, 10]$ | 2,4,4 | `FEASIBLE` | 260 s |
+| 4 | 1 | **1** | 1 | `OPTIMAL` | 0,2 s |
+| 4 | 2 | **4** | 2,2 | `OPTIMAL` | 0,7 s |
+| 4 | 3 | **9** | 2,4,3 | `OPTIMAL` | 7,2 s |
+| 8 | 1 | **1** | 1 | `OPTIMAL` | 0,6 s |
+| 8 | 2 | **4** | 2,2 | `OPTIMAL` | 1,6 s |
+| 8 | 3 | **10** | 2,4,4 | `OPTIMAL` | 118 s |
 
-Para el caso sin cerrar, ambos extremos están demostrados: existe una trayectoria con 10
-cajas activas, y CP-SAT probó que ninguna tiene menos de 8. Corridas más largas con
-distinto número de hilos dieron incumbentes de 10 y 12 (CP-SAT no es determinista al
-variar los hilos), de modo que 10 es el mejor valor conocido.
+Los tiempos corresponden a la máquina de referencia del proyecto. En hardware más modesto
+el último caso puede requerir varios minutos y no certificar en el primer intento: CP-SAT
+no es determinista al variar el número de hilos, y en pruebas con 16 hilos se obtuvo un
+incumbente peor (12) que con 8 (10). Conviene reintentar con distintas configuraciones
+antes de concluir que un caso no cierra.
 
 ## Magnitudes de seguridad
 
@@ -32,14 +33,15 @@ probabilidad $\le 2^{-2n}$ y requiere $\approx 2^{2n}$ pares.
 Un punto metodológico importante: la garantía de seguridad se deriva de la **cota
 inferior** del número de cajas activas, no de la superior. Si el mínimo real fuera menor
 que el hallado, existiría un ataque mejor. Para los cinco casos certificados la cota
-inferior coincide con el mínimo exacto, de modo que la cifra es firme.
+inferior coincide con el mínimo exacto en los seis casos, de modo que las cifras son
+firmes.
 
 | Intentos | $R$ | $n$ | Probabilidad | Pares | Orden decimal |
 |:---:|:---:|:---:|:---:|:---:|:---:|
 | $< 10$ | 1 | 1 (exacto) | $2^{-2}$ | $2^{2}$ | $\sim 4$ |
 | 10–19 | 2 | 4 (exacto) | $2^{-8}$ | $2^{8}$ | $\sim 2.6 \times 10^{2}$ |
 | 20–29 | 3 | 9 (exacto, $z{=}4$) | $2^{-18}$ | $2^{18}$ | $\sim 2.6 \times 10^{5}$ |
-| 20–29 | 3 | $\ge 8$ ($z{=}8$) | $\le 2^{-16}$ | $\ge 2^{16}$ | $\gtrsim 6.6 \times 10^{4}$ |
+| 20–29 | 3 | 10 (exacto, $z{=}8$) | $2^{-20}$ | $2^{20}$ | $\sim 1.0 \times 10^{6}$ |
 
 ## Interpretación de la descomposición por ronda
 
@@ -48,7 +50,7 @@ El desglose es más informativo que el total:
 - $R = 2$: `2, 2`.
 - $R = 3$, $z=4$: `2, 4, 3` — la trayectoria óptima **vuelve a estrecharse** en la tercera
   ronda en lugar de dispersarse.
-- $R = 3$, $z=8$: `2, 4, 4` (mejor trayectoria hallada).
+- $R = 3$, $z=8$: `2, 4, 4` — mismo patrón.
 
 Este patrón es relevante y contradice la intuición inicial de este trabajo. Una búsqueda
 voraz que en cada caja elige la salida de menor peso de Hamming produce trayectorias que
@@ -66,7 +68,7 @@ ejemplo claro de por qué la optimización local no basta en criptoanálisis dif
 | $R{=}2$, $z{=}4$ | 9, gap 100 % | 4, certificado | **4** |
 | $R{=}2$, $z{=}8$ | 4, gap 100 % | 4, certificado | **4** |
 | $R{=}3$, $z{=}4$ | 18, gap 100 % | 9, certificado | **9** |
-| $R{=}3$, $z{=}8$ | sin solución factible | $[8, 10]$ | ? |
+| $R{=}3$, $z{=}8$ | sin solución factible | 10, certificado | **10** |
 
 ### Por qué el MILP no cierra
 

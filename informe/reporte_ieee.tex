@@ -43,9 +43,8 @@ mediante su Tabla de Distribución de Diferencias (DDT). Sobre esta base se cons
 modelo de Programación Lineal Entera Mixta (MILP) que minimiza el número de cajas-S
 activas, para $R\in\{1,2,3\}$ rondas y $z\in\{4,8\}$ bits. El MILP certifica el óptimo
 para $R=1$ pero no cierra el gap para $R\ge2$, por lo que la misma formulación se
-resuelve además con CP-SAT, que certifica cinco de los seis casos: el mínimo es $1$ caja
-activa para $R=1$, $4$ para $R=2$ y $9$ para $R=3$ con $z=4$ (el caso $R=3$, $z=8$ queda
-demostrado en el intervalo $[8,10]$). Traducido a complejidad de datos, el ataque
+resuelve además con CP-SAT, que certifica los seis casos: el mínimo es $1$ caja activa para
+$R=1$, $4$ para $R=2$, y $9$ y $10$ para $R=3$ con $z=4$ y $z=8$ respectivamente. Traducido a complejidad de datos, el ataque
 diferencial pasa de $\sim2^{2}$ pares con una ronda a $\sim2^{18}$ con tres, lo que
 confirma que la variante endurece la primitiva a medida que aumentan los intentos
 fallidos, aunque en una magnitud sensiblemente menor de lo que sugerían cotas no
@@ -305,7 +304,7 @@ $z$ & $R$ & Mínimo & Por ronda & Estado \\
 4 & 3 & $9$        & $2,4,3$ & óptimo certificado \\
 8 & 1 & $1$        & $1$     & óptimo certificado \\
 8 & 2 & $4$        & $2,2$   & óptimo certificado \\
-8 & 3 & $[8,10]$   & $2,4,4$ & no cerrado \\
+8 & 3 & $10$       & $2,4,4$ & óptimo certificado \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -318,12 +317,12 @@ $z$ & $R$ & Mínimo & Por ronda & Estado \\
 \toprule
 $z$ & $R$ & MILP (120 s) & CP-SAT & Óptimo \\
 \midrule
-4 & 1 & $1$ cert.      & $1$ cert. (0,8 s)  & $1$ \\
-4 & 2 & $9$, gap 100\% & $4$ cert. (2,9 s)  & $4$ \\
-4 & 3 & $18$, gap 100\% & $9$ cert. (68 s)  & $9$ \\
-8 & 1 & $1$ cert.      & $1$ cert. (2,1 s)  & $1$ \\
-8 & 2 & $4$, gap 100\% & $4$ cert. (9,2 s)  & $4$ \\
-8 & 3 & sin solución   & $[8,10]$ (260 s)   & ? \\
+4 & 1 & $1$ cert.      & $1$ cert. (0,2 s)   & $1$ \\
+4 & 2 & $9$, gap 100\% & $4$ cert. (0,7 s)   & $4$ \\
+4 & 3 & $18$, gap 100\% & $9$ cert. (7,2 s)  & $9$ \\
+8 & 1 & $1$ cert.      & $1$ cert. (0,6 s)   & $1$ \\
+8 & 2 & $4$, gap 100\% & $4$ cert. (1,6 s)   & $4$ \\
+8 & 3 & sin solución   & $10$ cert. (118 s)  & $10$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -378,18 +377,17 @@ restricciones nativas para las dos estructuras que el MILP codifica con dificult
 variables de selección). Esto elimina cerca del $90\,\%$ de las variables y permite al
 solver aprender cláusulas sobre la estructura XOR.
 
-El resultado es concluyente (Tabla~\ref{tab:comp}): CP-SAT certifica cinco de los seis
-casos, con tiempos entre $0{,}8$ y $68$~s, incluidos aquellos en que el MILP no cerraba en
-$120$~s. Sólo $R=3$, $z=8$ queda abierto, con el mínimo demostrado en el intervalo
-$[8,10]$: existe una trayectoria de $10$ cajas y se ha probado que ninguna tiene menos de
-$8$.
+El resultado es concluyente (Tabla~\ref{tab:comp}): CP-SAT certifica la optimalidad de los
+seis casos, con tiempos entre $0{,}2$ y $118$~s, incluidos aquellos en que el MILP no
+cerraba en $120$~s o no hallaba solución alguna. El problema, por tanto, no era
+intrínsecamente intratable: lo era su formulación como MILP.
 
 Se conservan ambos modelos: el MILP es la formulación requerida y CP-SAT la herramienta de
 certificación. La distinción metodológica es la relevante: una cota superior es la
 perspectiva del \emph{atacante} (existe una trayectoria con $n$ cajas), mientras que una
 garantía de seguridad exige la cota inferior demostrada, la perspectiva del
-\emph{defensor} (ninguna trayectoria tiene menos de $n$ cajas). Los cinco casos
-certificados proporcionan ambas simultáneamente.
+\emph{defensor} (ninguna trayectoria tiene menos de $n$ cajas). Al ser exactos, los seis
+valores de la Tabla~\ref{tab:res} proporcionan ambas simultáneamente.
 
 \section{Justificación de la variante}\label{sec:justificacion}
 
@@ -422,14 +420,15 @@ Intentos & $R$ & Cajas ($n$) & $\Pr\le 2^{-2n}$ & Pares $\approx 2^{2n}$ \\
 $<10$      & 1 & $1$ (exacto)          & $2^{-2}$        & $2^{2}$ \\
 $10$--$19$ & 2 & $4$ (exacto)          & $2^{-8}$        & $2^{8}$ \\
 $20$--$29$ & 3 & $9$ (exacto, $z{=}4$) & $2^{-18}$       & $2^{18}$ \\
-           &   & $\ge 8$ ($z{=}8$)     & $\le 2^{-16}$   & $\ge 2^{16}$ \\
+           &   & $10$ (exacto, $z{=}8$) & $2^{-20}$      & $2^{20}$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 El crecimiento es superlineal. Al pasar de una a tres rondas, la complejidad de datos del
-ataque diferencial óptimo asciende de $2^{2}$ a $2^{18}$ pares, es decir, de unas pocas
-unidades a $\sim 2{,}6\times10^{5}$: dieciséis órdenes binarios de magnitud. La razón
+ataque diferencial óptimo asciende de $2^{2}$ a $2^{18}$ pares con $z=4$ (y a $2^{20}$ con
+$z=8$), es decir, de unas pocas unidades a $\sim 10^{5}$--$10^{6}$: dieciséis a dieciocho
+órdenes binarios de magnitud. La razón
 estructural es doble: la biyectividad garantiza que las diferencias no puedan anularse, y
 la difusión de $\theta$ las dispersa entre filas, activando cajas-S adicionales.
 
@@ -451,8 +450,9 @@ Por rigor, la conclusión debe acotarse en tres sentidos. Primero, la comparaci�
 $24$ rondas del estándar. Con $R=3$ y $z=4$ el óptimo certificado de $9$ cajas implica
 $\sim2^{18}$ pares: suficiente para observar el efecto de la variable dinámica, pero muy
 lejos de un margen de seguridad utilizable; y $R=1$ es directamente inservible ($\sim4$
-pares). Segundo, el caso $R=3$, $z=8$ permanece sin cerrar en $[8,10]$. Tercero, el
-reescalado de los desplazamientos de $\rho$ (Sec.~\ref{sec:lineal}) degrada la difusión
+pares). Segundo, los resultados corresponden a versiones reducidas: no se ha analizado
+$w=64$, cuyo tamaño de estado excede lo que el modelo aquí empleado puede certificar.
+Tercero, el reescalado de los desplazamientos de $\rho$ (Sec.~\ref{sec:lineal}) degrada la difusión
 respecto del estándar, especialmente con $z=4$, donde siete carriles no se rotan. La
 afirmación sostenible es que la variante incrementa la resistencia diferencial de manera
 monótona con los intentos, no que alcance niveles de seguridad equiparables a SHA-3.
@@ -506,9 +506,9 @@ rondas dinámicas, empleando la DDT de $\chi$ para representar exactamente las
 transiciones válidas de la capa no lineal. Las conclusiones son:
 
 \begin{enumerate}
-\item El mínimo de cajas-S activas está certificado en cinco de los seis casos: $1$ para
-$R=1$, $4$ para $R=2$ (ambos tamaños de palabra) y $9$ para $R=3$ con $z=4$. El caso $R=3$,
-$z=8$ queda demostrado en $[8,10]$. Una ronda es criptográficamente insuficiente.
+\item El mínimo de cajas-S activas está certificado en los seis casos: $1$ para $R=1$, $4$
+para $R=2$ (ambos tamaños de palabra), $9$ para $R=3$ con $z=4$ y $10$ con $z=8$. Una ronda
+es criptográficamente insuficiente.
 \item El MILP resultó inadecuado para certificar más allá de $R=1$, no por la primitiva
 sino por su encoding: cerca del $90\,\%$ de sus variables corresponden a la codificación
 \emph{big-M} de la DDT, y la paridad sobre $\Fdos$ se relaja muy mal. Ni la reformulación
@@ -524,15 +524,15 @@ estimación de seguridad.
 tenerse en cuenta al extrapolar los resultados a $w=64$.
 \end{enumerate}
 
-Como trabajo futuro queda cerrar el caso $R=3$, $z=8$, para lo que cabe explotar la
-estructura del \emph{column-parity kernel} de Keccak o instrumentar solvers SAT
-especializados. Un camino complementario, si se deseara mantener el enfoque MILP, es
-sustituir el encoding \emph{big-M} de $\chi$ aprovechando que el conjunto de diferencias de
-salida válidas es, para cada diferencia de entrada, un subespacio afín de $\Fdos^5$ de
-dimensión $2$, $3$ o $4$; ello permitiría reemplazar las $317$ variables de selección por
-unas pocas ecuaciones lineales. Sería igualmente pertinente extender el análisis a
-criptoanálisis lineal y evaluar el canal lateral temporal introducido por el número
-variable de rondas.
+Como trabajo futuro, el camino natural es extender la certificación a más rondas y a
+tamaños de palabra mayores, para lo que probablemente sea necesario explotar la estructura
+del \emph{column-parity kernel} de Keccak. Si se deseara mantener el enfoque MILP, una vía
+concreta de mejora es sustituir el encoding \emph{big-M} de $\chi$ aprovechando que el
+conjunto de diferencias de salida válidas es, para cada diferencia de entrada, un subespacio
+afín de $\Fdos^5$ de dimensión $2$, $3$ o $4$; ello permitiría reemplazar las $317$
+variables de selección por unas pocas ecuaciones lineales. Sería igualmente pertinente
+extender el análisis a criptoanálisis lineal y evaluar el canal lateral temporal introducido
+por el número variable de rondas.
 
 \section*{Disponibilidad del código}
 
@@ -542,7 +542,6 @@ en el repositorio del proyecto:
 \begin{center}
 \url{https://github.com/tgoscar/keccak-milp-dinamico}
 \end{center}
-\noindent\emph{(Sustituir por la URL definitiva del repositorio antes de la entrega.)}
 
 \begin{thebibliography}{9}
 \bibitem{fips202} National Institute of Standards and Technology, \emph{SHA-3 Standard:

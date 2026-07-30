@@ -14,7 +14,7 @@ variante es efectivamente más segura y en qué magnitud.
 
 ## Resultados
 
-Cinco de los seis casos tienen **óptimo certificado** (CP-SAT devuelve `OPTIMAL`, gap
+Los **seis casos** tienen **óptimo exacto certificado** (CP-SAT devuelve `OPTIMAL`, gap
 cerrado):
 
 | $z$ | $R$ | Mínimo de cajas-S | Por ronda | Estado | Probabilidad | Pares |
@@ -24,18 +24,19 @@ cerrado):
 | 4 | 3 | **9** | 2,4,3 | certificado | $2^{-18}$ | $2^{18}$ |
 | 8 | 1 | **1** | 1 | certificado | $2^{-2}$ | $2^{2}$ |
 | 8 | 2 | **4** | 2,2 | certificado | $2^{-8}$ | $2^{8}$ |
-| 8 | 3 | $[8, 10]$ | 2,4,4 | no cerrado | $\le 2^{-16}$ | $\ge 2^{16}$ |
+| 8 | 3 | **10** | 2,4,4 | certificado | $2^{-20}$ | $2^{20}$ |
 
 Siendo $n$ el número de cajas-S activas, la probabilidad de la trayectoria se acota por
 $2^{-2n}$ y los pares necesarios por $2^{2n}$, ya que la probabilidad diferencial máxima
 de la caja-S $\chi$ es $2^{-2}$.
 
 Las magnitudes de seguridad se derivan de la **cota inferior** del número de cajas
-activas: es la que sustenta una garantía frente a un atacante. Para los casos
-certificados la cota inferior coincide con el mínimo exacto.
+activas, que es la que sustenta una garantía frente a un atacante. Al estar los seis casos
+certificados, esa cota coincide con el mínimo exacto.
 
 **Lectura.** Al pasar de una a tres rondas, la complejidad de datos del ataque
-diferencial asciende de $\sim 4$ pares a $\sim 2.6 \times 10^{5}$: la variable dinámica
+diferencial asciende de $\sim 4$ pares a $\sim 2.6 \times 10^{5}$ ($z{=}4$) o
+$\sim 10^{6}$ ($z{=}8$): la variable dinámica
 endurece la primitiva cuando los intentos fallidos sugieren un ataque, si bien $R = 3$
 sigue muy por debajo de un nivel de seguridad utilizable. Las salvedades están en
 [Limitaciones](#limitaciones-del-estudio).
@@ -47,12 +48,12 @@ radicalmente:
 
 | Caso | MILP (HiGHS, 120 s) | CP-SAT | Óptimo |
 |---|:---:|:---:|:---:|
-| $R{=}1$, $z{=}4$ | 1, certificado | 1, certificado (0,8 s) | **1** |
-| $R{=}1$, $z{=}8$ | 1, certificado | 1, certificado (2,1 s) | **1** |
-| $R{=}2$, $z{=}4$ | 9, gap 100 % | 4, certificado (2,9 s) | **4** |
-| $R{=}2$, $z{=}8$ | 4, gap 100 % | 4, certificado (9,2 s) | **4** |
-| $R{=}3$, $z{=}4$ | 18, gap 100 % | 9, certificado (68 s) | **9** |
-| $R{=}3$, $z{=}8$ | sin solución | $[8, 10]$ (260 s) | ? |
+| $R{=}1$, $z{=}4$ | 1, certificado | 1, certificado (0,2 s) | **1** |
+| $R{=}1$, $z{=}8$ | 1, certificado | 1, certificado (0,6 s) | **1** |
+| $R{=}2$, $z{=}4$ | 9, gap 100 % | 4, certificado (0,7 s) | **4** |
+| $R{=}2$, $z{=}8$ | 4, gap 100 % | 4, certificado (1,6 s) | **4** |
+| $R{=}3$, $z{=}4$ | 18, gap 100 % | 9, certificado (7,2 s) | **9** |
+| $R{=}3$, $z{=}8$ | sin solución | 10, certificado (118 s) | **10** |
 
 El MILP no cierra el gap para $R \ge 2$: cerca del **90 % de sus variables** son las
 binarias de selección *big-M* del encoding de la DDT (12 680 de 14 140 para $R{=}2$,
@@ -212,9 +213,9 @@ Detalle completo en [`docs/MODELO.md`](docs/MODELO.md).
 
 ## Limitaciones del estudio
 
-1. **Un caso sin cerrar.** Para $R = 3$, $z = 8$ el mínimo está demostrado en
-   $[8, 10]$: existe una trayectoria con 10 cajas activas y se ha probado que ninguna
-   tiene menos de 8. Los cinco casos restantes tienen óptimo exacto certificado.
+1. **Alcance del modelo.** Los seis casos analizados están certificados, pero
+   corresponden a versiones reducidas ($z \in \{4, 8\}$) y a un máximo de tres rondas. No
+   se ha analizado $w = 64$ ni las 24 rondas del estándar.
 
 2. **Las versiones reducidas difunden peor que el estándar.** Al reducir los
    desplazamientos de $\rho$ módulo $z$, con $z=4$ los 25 offsets colapsan a 4 valores

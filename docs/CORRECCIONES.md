@@ -215,7 +215,7 @@ cual no lo era:
 | Caso | Cota voraz | Óptimo certificado (CP-SAT) |
 |---|:---:|:---:|
 | $R{=}3$, $z{=}4$ | 18 (2,2,14) | **9** (2,4,3) |
-| $R{=}3$, $z{=}8$ | 20 (2,2,16) | $[8, 10]$ (2,4,4) |
+| $R{=}3$, $z{=}8$ | 20 (2,2,16) | **10** (2,4,4) |
 
 El error de la cota es de un factor 2. La causa es instructiva: elegir el mínimo peso de
 Hamming en cada caja es una decisión **local** que ignora su efecto sobre las rondas
