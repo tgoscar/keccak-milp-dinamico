@@ -8,9 +8,7 @@ A partir de ese mínimo se acota la probabilidad de las trayectorias diferencial
 número de pares de textos que requeriría un ataque, lo que permite cuantificar si la
 variante es efectivamente más segura y en qué magnitud.
 
-**Contexto académico.** Trabajo final del curso PN-MCC640B, Maestría en Ciencias de la
-Computación, Universidad Nacional de Ingeniería (UNI). Informe completo en
-[`informe/reporte_ieee.pdf`](informe/reporte_ieee.pdf).
+
 
 ---
 
