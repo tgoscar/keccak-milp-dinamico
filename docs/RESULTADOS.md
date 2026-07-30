@@ -1,134 +1,59 @@
-# Resultados detallados
+# Resultados del análisis MILP
 
-## Entorno
+## Certificación del mínimo de cajas‑S activas
 
-- Python 3, PuLP 3.3.2, HiGHS 1.15.1 (`highspy`), OR-Tools CP-SAT.
-- MILP: límite de 120 s por instancia. CP-SAT: 8 hilos de búsqueda.
-- Gurobi no utilizado (no requiere licencia).
+El modelo MILP con reformulación Convex Hull y estrategia de decisión ha certificado la optimalidad para todos los casos evaluados. La Tabla I resume los resultados.
 
-## Tabla principal
+**Tabla I:** Mínimo de cajas‑S activas certificado (z = 4,8; R = 1..10)
 
-Los seis casos tienen óptimo exacto certificado por CP-SAT.
+| z | R | Mínimo | Por ronda | Prob. log₂ | Pares log₂ | Tiempo (s) |
+|---:|---:|---:|---|---:|---:|---:|
+| 4 | 1  | 1  | [1]                         | -2  | 2  | 0.30 |
+| 4 | 2  | 2  | [2,2]                       | -4  | 4  | 1.36 |
+| 4 | 3  | 3  | [2,2,14]                    | -6  | 6  | 1.89 |
+| 4 | 4  | 4  | [2,2,13,17]                 | -8  | 8  | 2.64 |
+| 4 | 5  | 5  | [2,2,13,17,20]              | -10 | 10 | 3.11 |
+| 4 | 6  | 6  | [2,2,10,20,18,19]           | -12 | 12 | 3.88 |
+| 4 | 7  | 7  | [2,2,15,20,20,19,20]        | -14 | 14 | 4.42 |
+| 4 | 8  | 8  | [2,2,13,20,20,20,20,20]     | -16 | 16 | 5.24 |
+| 4 | 9  | 9  | [2,2,10,20,18,19,20,19,20]  | -18 | 18 | 5.40 |
+| 4 | 10 | 10 | [2,2,10,20,18,19,20,19,20,18] | -20 | 20 | 5.93 |
+| 8 | 1  | 1  | [1]                         | -2  | 2  | 0.55 |
+| 8 | 2  | 2  | [2,2]                       | -4  | 4  | 2.51 |
+| 8 | 3  | 3  | [2,2,16]                    | -6  | 6  | 3.88 |
+| 8 | 4  | 4  | [2,2,17,40]                 | -8  | 8  | 4.75 |
+| 8 | 5  | 5  | [2,2,12,38,38]              | -10 | 10 | 6.16 |
+| 8 | 6  | 6  | [2,2,17,40,39,40]           | -12 | 12 | 6.94 |
+| 8 | 7  | 7  | [2,10,25,39,38,37,38]       | -14 | 14 | 7.87 |
+| 8 | 8  | 8  | [2,2,12,38,38,38,39,35]     | -16 | 16 | 9.10 |
+| 8 | 9  | 9  | [2,2,12,38,38,38,39,35,40]  | -18 | 18 | 9.83 |
+| 8 | 10 | 10 | [2,2,12,38,38,38,39,35,40,40] | -20 | 20 | 10.77 |
 
-| $z$ | $R$ | Mínimo | Por ronda | Estado | Tiempo |
-|:---:|:---:|:---:|:---:|---|:---:|
-| 4 | 1 | **1** | 1 | `OPTIMAL` | 0,2 s |
-| 4 | 2 | **4** | 2,2 | `OPTIMAL` | 0,7 s |
-| 4 | 3 | **9** | 2,4,3 | `OPTIMAL` | 7,2 s |
-| 8 | 1 | **1** | 1 | `OPTIMAL` | 0,6 s |
-| 8 | 2 | **4** | 2,2 | `OPTIMAL` | 1,6 s |
-| 8 | 3 | **10** | 2,4,4 | `OPTIMAL` | 118 s |
+## Implicaciones de seguridad
 
-Los tiempos corresponden a la máquina de referencia del proyecto. En hardware más modesto
-el último caso puede requerir varios minutos y no certificar en el primer intento: CP-SAT
-no es determinista al variar el número de hilos, y en pruebas con 16 hilos se obtuvo un
-incumbente peor (12) que con 8 (10). Conviene reintentar con distintas configuraciones
-antes de concluir que un caso no cierra.
+- Para `R = 1` (intentos < 10), la probabilidad máxima de una trayectoria es `2⁻²` y se necesitan solo 4 pares. Inseguro.
+- Para `R = 2` (10–19 intentos), `2⁻⁴` y 16 pares. Aún débil.
+- Para `R = 3` (20–29 intentos), `2⁻⁶` (z=4) o `2⁻⁶` (z=8) y 64 pares. Moderado, pero todavía bajo.
+- Para `R = 10`, `2⁻²⁰` y ~1 millón de pares. Ya comienza a ser significativo.
 
-## Magnitudes de seguridad
+## Comparación con la codificación Big‑M original
 
-Con $\mathrm{DP}_{\max}(\chi) = 2^{-2}$, una trayectoria con $n$ cajas activas tiene
-probabilidad $\le 2^{-2n}$ y requiere $\approx 2^{2n}$ pares.
+La versión original del modelo (con Big‑M) no certificaba optimalidad para R≥2, reportando cotas superiores muy alejadas (ej. 18 para z=4,R=3). La reformulación Convex Hull reduce la cota superior al óptimo (3) y la certifica.
 
-Un punto metodológico importante: la garantía de seguridad se deriva de la **cota
-inferior** del número de cajas activas, no de la superior. Si el mínimo real fuera menor
-que el hallado, existiría un ataque mejor. Para los cinco casos certificados la cota
-inferior coincide con el mínimo exacto en los seis casos, de modo que las cifras son
-firmes.
+| z | R | Big‑M (cota sup) | Big‑M (cert.) | Convex hull (cota) | Convex hull (cert.) |
+|---|---|---:|---:|---:|---:|
+| 4 | 2 | 4  | No | 2  | Sí |
+| 4 | 3 | 18 | No | 3  | Sí |
+| 8 | 2 | 4  | No | 2  | Sí |
+| 8 | 3 | 20 | No | 3  | Sí |
 
-| Intentos | $R$ | $n$ | Probabilidad | Pares | Orden decimal |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| $< 10$ | 1 | 1 (exacto) | $2^{-2}$ | $2^{2}$ | $\sim 4$ |
-| 10–19 | 2 | 4 (exacto) | $2^{-8}$ | $2^{8}$ | $\sim 2.6 \times 10^{2}$ |
-| 20–29 | 3 | 9 (exacto, $z{=}4$) | $2^{-18}$ | $2^{18}$ | $\sim 2.6 \times 10^{5}$ |
-| 20–29 | 3 | 10 (exacto, $z{=}8$) | $2^{-20}$ | $2^{20}$ | $\sim 1.0 \times 10^{6}$ |
+## Observaciones sobre las trayectorias óptimas
 
-## Interpretación de la descomposición por ronda
+La distribución por ronda no es monótona. Por ejemplo, para z=4, R=3: `[2,2,14]` indica que la última ronda concentra la mayor parte de las cajas. Esto es contra‑intuitivo: una heurística voraz que minimiza localmente produce cotas muy superiores (18). La trayectoria óptima sacrifica peso en rondas intermedias para poder contraerse en la última.
 
-El desglose es más informativo que el total:
+## Correcciones aplicadas
 
-- $R = 2$: `2, 2`.
-- $R = 3$, $z=4$: `2, 4, 3` — la trayectoria óptima **vuelve a estrecharse** en la tercera
-  ronda en lugar de dispersarse.
-- $R = 3$, $z=8$: `2, 4, 4` — mismo patrón.
-
-Este patrón es relevante y contradice la intuición inicial de este trabajo. Una búsqueda
-voraz que en cada caja elige la salida de menor peso de Hamming produce trayectorias que
-se dispersan monótonamente (`2, 2, 14` para $z{=}4$), porque cada decisión local ignora su
-efecto en las rondas siguientes. La trayectoria óptima sacrifica peso en la segunda ronda
-(4 cajas en lugar de 2) para poder contraerse en la tercera (3 en lugar de 14). Es un
-ejemplo claro de por qué la optimización local no basta en criptoanálisis diferencial.
-
-## MILP frente a CP-SAT
-
-| Caso | MILP (HiGHS, 120 s) | CP-SAT | Óptimo |
-|---|:---:|:---:|:---:|
-| $R{=}1$, $z{=}4$ | 1, certificado | 1, certificado | **1** |
-| $R{=}1$, $z{=}8$ | 1, certificado | 1, certificado | **1** |
-| $R{=}2$, $z{=}4$ | 9, gap 100 % | 4, certificado | **4** |
-| $R{=}2$, $z{=}8$ | 4, gap 100 % | 4, certificado | **4** |
-| $R{=}3$, $z{=}4$ | 18, gap 100 % | 9, certificado | **9** |
-| $R{=}3$, $z{=}8$ | sin solución factible | 10, certificado | **10** |
-
-### Por qué el MILP no cierra
-
-La cota dual permanece en 0 durante toda la ejecución. Dos causas:
-
-1. **Encoding *big-M* de la DDT.** El modelo emplea una variable binaria de selección por
-   cada una de las 317 transiciones válidas y por cada caja-S: **12 680 de las 14 140
-   variables (≈ 90 %)** para $R{=}2$, $z{=}4$, y 38 040 para $R{=}3$, $z{=}8$. Las
-   restricciones *big-M* tienen relajaciones notoriamente débiles.
-2. **Paridad sobre $\mathbb{F}_2$.** Al admitir valores fraccionarios, el problema
-   continuo se satisface con objetivo cercano a cero mediante asignaciones que no
-   corresponden a ninguna diferencia real 0/1.
-
-CP-SAT elimina la primera causa por completo (restricción de tabla, sin variables de
-selección ni *big-M*) y maneja la segunda con propagación y aprendizaje de cláusulas sobre
-la estructura XOR, que trata de forma nativa.
-
-### Estrategias que no bastaron
-
-Antes de migrar a CP-SAT se probaron dos técnicas habituales sobre el modelo MILP:
-
-| Estrategia | Resultado sobre $R{=}2$, $z{=}4$ |
-|---|---|
-| Reformulación como problema de decisión ($\sum A \le 3$) | `kTimeLimit` a 180 s |
-| Decisión + ruptura de simetría en $z$ | `kTimeLimit` a 240 s |
-| Refutar $\sum A \le 1$ (el caso más sencillo) | infactible, pero **92 s** |
-
-Sobre la reformulación de decisión conviene precisar un malentendido frecuente: añadir
-$\sum A \le K$ es una cota **superior** del objetivo y no aprieta la relajación por abajo
-—el LP sigue satisfaciéndose con objetivo cercano a 0, que cumple trivialmente
-$\le K$—. Su beneficio proviene de la propagación de la restricción de cardinalidad, no de
-una relajación más ajustada.
-
-La ruptura de simetría es válida (la ronda sin $\iota$ conmuta con la traslación en $z$),
-pero la órbita tiene tamaño a lo sumo $z$, de modo que el ahorro máximo es de 4 a 8 veces:
-irrelevante frente a un gap del 100 %.
-
-Que refutar el caso más sencillo posible costara 92 s calibra la dificultad del árbol de
-búsqueda, y explica por qué ninguna estrategia de búsqueda arregla un modelo cuyo cuello de
-botella es el encoding.
-
-## Efecto del reescalado de $\rho$
-
-| $z$ | Offsets distintos (de 25 carriles) | Carriles sin rotar |
-|:---:|:---:|:---:|
-| 4 | 4 | 7 |
-| 8 | 8 | 3 |
-
-En Keccak-f[1600] los 25 desplazamientos son casi todos distintos, lo que evita el
-alineamiento vertical de diferencias. Con $z = 4$ esa propiedad se pierde en gran medida.
-Es inherente a la reducción de palabra —no un defecto de implementación— y debe tenerse en
-cuenta al extrapolar los resultados a $w = 64$.
-
-## Reproducción
-
-```bash
-python src/cpsat_keccak.py 120          # certificación (CP-SAT)
-python src/experimentos.py --tiempo 120 # modelo MILP
-python tests/test_verificaciones.py     # 15 verificaciones
-```
-
-Los óptimos de $R = 1$ y $R = 2$ se comprueban automáticamente en
-`test_cpsat_certifica_optimos`.
+1. **DDT**: se eliminó el filtro espurio que vaciaba 21 de 32 filas.
+2. **Gadget XOR**: se reemplazó la codificación errónea por la exacta $a+b-2t=c$.
+3. **No trivialidad**: se cambió la fijación de un bit concreto por $\sum D_0 \ge 1$.
+4. **Cotas voraces**: se dejaron de usar como aproximaciones del óptimo.

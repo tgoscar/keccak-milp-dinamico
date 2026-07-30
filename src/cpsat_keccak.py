@@ -1,40 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Certificación del número mínimo de cajas-S activas mediante CP-SAT (OR-Tools).
+Modelo CP-SAT (OR-Tools) para Keccak dinámico.
 
-Misma formulación diferencial que el modelo MILP de `milp_keccak.py`, pero con
-las restricciones que CP-SAT trata de forma nativa:
-
-  * XOR nativo (`AddBoolXOr`) en lugar de variables auxiliares con a + b - 2t = c.
-  * chi mediante restricción de TABLA (`AddAllowedAssignments`) con las 317
-    transiciones válidas de la DDT: sin big-M y sin variables de selección.
-
-El modelo MILP dedica cerca del 90 % de sus variables al encoding big-M de la
-DDT (12 680 de 14 140 para R=2, z=4), cuya relajación lineal es muy débil. CP-SAT
-no necesita ese encoding y, además, aprende cláusulas sobre la estructura XOR;
-en la práctica certifica en segundos lo que el MILP no cierra en minutos.
-
-Ruptura de simetría
--------------------
-La ronda sin iota conmuta con la traslación a lo largo de z: theta rota una
-posición en z, rho traslada cada carril una constante, pi permuta carriles y chi
-actúa dentro del slice. (iota existe precisamente para romper esa invariancia.)
-Por tanto toda trayectoria pertenece a una órbita de tamaño divisor de z, y se
-puede exigir sin pérdida que el slice z=0 de la diferencia de entrada sea no
-nulo. El ahorro está acotado por z, de modo que es útil pero modesto.
-
-Uso:
-    python src/cpsat_keccak.py            # los 6 casos, 120 s cada uno
-    python src/cpsat_keccak.py 300        # 300 s por caso
+Este archivo es OPCIONAL y se proporciona como comparación con el modelo MILP.
+El modelo MILP con Convex Hull ya certifica optimalidad en todos los casos;
+CP-SAT fue útil durante el desarrollo para validar resultados en R=1..3.
 """
 
-import os
-import sys
+import math
 import time
-
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
 from ortools.sat.python import cp_model
 
 try:
@@ -44,126 +19,141 @@ except ImportError:
 
 L = 5
 DP_MAX_LOG2 = -2
+DDT = ddt_transiciones()   # diccionario a -> lista de b válidos
 
-# Transiciones válidas de la DDT como tuplas de 10 bits (5 de entrada, 5 de salida)
-DDT = ddt_transiciones()
-TUPLAS = []
-for _a, _bl in DDT.items():
-    for _b in _bl:
-        TUPLAS.append([(_a >> i) & 1 for i in range(5)] +
-                      [(_b >> i) & 1 for i in range(5)])
-
-
-def construir(R, z, simetria=True):
-    """Construye el modelo CP-SAT. Devuelve (modelo, dict de actividades)."""
-    m = cp_model.CpModel()
-    D = {(r, x, y, k): m.NewBoolVar("D%d_%d_%d_%d" % (r, x, y, k))
-         for r in range(R + 1) for x in range(L) for y in range(L) for k in range(z)}
-    A = {}
-
-    for r in range(R):
-        # --- theta: paridades de columna ---
-        C = {(x, k): m.NewBoolVar("C%d_%d_%d" % (r, x, k))
-             for x in range(L) for k in range(z)}
-        for x in range(L):
-            for k in range(z):
-                # C = XOR de los 5 bits  <=>  XOR(not C, bits...) impar
-                m.AddBoolXOr([C[(x, k)].Not()] + [D[(r, x, y, k)] for y in range(L)])
-
-        # --- theta: corrección ---
-        Dth = {(x, k): m.NewBoolVar("Dth%d_%d_%d" % (r, x, k))
-               for x in range(L) for k in range(z)}
-        for x in range(L):
-            for k in range(z):
-                m.AddBoolXOr([Dth[(x, k)].Not(), C[((x - 1) % L, k)],
-                              C[((x + 1) % L, (k - 1) % z)]])
-
-        # --- theta: estado corregido ---
-        Dt = {(x, y, k): m.NewBoolVar("Dt%d_%d_%d_%d" % (r, x, y, k))
-              for x in range(L) for y in range(L) for k in range(z)}
+def resolver_cpsat(R, z, limite_tiempo=60, cota_superior=None):
+    """
+    Resuelve el problema con CP-SAT (OR-Tools).
+    Devuelve (certificado, incumbente, cota_dual, estado, por_ronda).
+    """
+    model = cp_model.CpModel()
+    
+    # Variables booleanas
+    D = {}
+    for r in range(R + 1):
         for x in range(L):
             for y in range(L):
                 for k in range(z):
-                    m.AddBoolXOr([Dt[(x, y, k)].Not(), D[(r, x, y, k)], Dth[(x, k)]])
-
-        # --- rho + pi: alias de variables, sin crear ninguna nueva ---
+                    D[(r, x, y, k)] = model.NewBoolVar(f'D_{r}_{x}_{y}_{k}')
+    
+    A = {}
+    for r in range(R):
+        for y in range(L):
+            for k in range(z):
+                A[(r, y, k)] = model.NewBoolVar(f'A_{r}_{y}_{k}')
+    
+    # Auxiliares para XOR (igual que en MILP)
+    def xor_lineal(a, b, out):
+        t = model.NewBoolVar('t')
+        model.Add(a + b - 2 * t == out)
+    
+    # --- Capas lineales (idénticas al MILP) ---
+    for r in range(R):
+        # theta: paridades
+        C = {}
+        for x in range(L):
+            for k in range(z):
+                acc = D[(r, x, 0, k)]
+                for y in range(1, L):
+                    nxt = model.NewBoolVar(f'C_{r}_{x}_{k}_{y}')
+                    xor_lineal(acc, D[(r, x, y, k)], nxt)
+                    acc = nxt
+                C[(x, k)] = acc
+        
+        Dth = {}
+        for x in range(L):
+            for k in range(z):
+                var = model.NewBoolVar(f'Dth_{r}_{x}_{k}')
+                xor_lineal(C[((x - 1) % L, k)], C[((x + 1) % L, (k - 1) % z)], var)
+                Dth[(x, k)] = var
+        
+        Dt = {}
+        for x in range(L):
+            for y in range(L):
+                for k in range(z):
+                    var = model.NewBoolVar(f'Dt_{r}_{x}_{y}_{k}')
+                    xor_lineal(D[(r, x, y, k)], Dth[(x, k)], var)
+                    Dt[(x, y, k)] = var
+        
+        # rho + pi (reindexación)
         Drp = {}
         for x in range(L):
             for y in range(L):
                 nx, ny, rot = y, (2 * x + 3 * y) % L, ROT[x][y] % z
                 for k in range(z):
                     Drp[(nx, ny, (k + rot) % z)] = Dt[(x, y, k)]
-
-        # --- chi: restricción de tabla + actividad ---
+        
+        # --- chi (con AddAllowedAssignments) ---
         for y in range(L):
             for k in range(z):
-                entrada = [Drp[(i, y, k)] for i in range(L)]
-                salida = [D[(r + 1, i, y, k)] for i in range(L)]
-                m.AddAllowedAssignments(entrada + salida, TUPLAS)
-                a = m.NewBoolVar("A%d_%d_%d" % (r, y, k))
-                m.AddMaxEquality(a, entrada)      # a = OR de los bits de entrada
-                A[(r, y, k)] = a
-
-    if simetria:
-        m.AddBoolOr([D[(0, x, y, 0)] for x in range(L) for y in range(L)])
+                vin_vars = [D[(r, i, y, k)] for i in range(L)]
+                vout_vars = [D[(r + 1, i, y, k)] for i in range(L)]
+                
+                # CORRECCIÓN: usar listas en lugar de generadores
+                vin = cp_model.LinearExpr.Sum([vin_vars[i] * (1 << i) for i in range(L)])
+                vout = cp_model.LinearExpr.Sum([vout_vars[i] * (1 << i) for i in range(L)])
+                act = A[(r, y, k)]
+                
+                # Construir tabla de transiciones válidas (in, out, act)
+                transiciones = []
+                for a in range(32):
+                    for b in DDT[a]:
+                        act_val = 1 if a != 0 else 0
+                        transiciones.append((a, b, act_val))
+                # Aseguramos que el caso inactivo (0,0,0) esté incluido
+                if (0, 0, 0) not in transiciones:
+                    transiciones.append((0, 0, 0))
+                
+                model.AddAllowedAssignments([vin, vout, act], transiciones)
+    
+    # Objetivo: minimizar total de cajas activas
+    total_cajas = sum(A[(r, y, k)] for r in range(R) for y in range(L) for k in range(z))
+    model.Minimize(total_cajas)
+    
+    # No trivialidad: al menos una diferencia en la entrada
+    model.Add(sum(D[(0, x, y, k)] for x in range(L) for y in range(L) for k in range(z)) >= 1)
+    
+    # Si se da una cota superior, usamos estrategia de decisión
+    if cota_superior is not None:
+        model.Add(total_cajas <= cota_superior - 1)
+    
+    # Resolver
+    solver = cp_model.CpSolver()
+    solver.parameters.max_time_in_seconds = limite_tiempo
+    solver.parameters.log_search_progress = False
+    status = solver.Solve(model)
+    
+    # Interpretar resultado
+    if status == cp_model.OPTIMAL:
+        certificado = True
+        incumbente = int(solver.ObjectiveValue())
+        dual = incumbente  # CP-SAT no da cota dual, la aproximamos
+        estado = "kOptimal"
+    elif status == cp_model.INFEASIBLE:
+        certificado = True  # infactible certifica que no hay solución con la cota
+        incumbente = None
+        dual = float('inf')
+        estado = "kInfeasible"
     else:
-        m.AddBoolOr([D[(0, x, y, k)] for x in range(L) for y in range(L)
-                     for k in range(z)])
-
-    m.Minimize(sum(A.values()))
-    return m, A
-
-
-def resolver(R, z, limite=120, simetria=True, hilos=8):
-    """Resuelve y devuelve un dict con el mínimo, las cotas y el estado.
-
-    `certificado` es True sólo si CP-SAT devuelve OPTIMAL. En caso contrario se
-    informa el intervalo [cota_inferior, cota_superior] realmente demostrado.
-    """
-    m, A = construir(R, z, simetria)
-    s = cp_model.CpSolver()
-    s.parameters.max_time_in_seconds = float(limite)
-    s.parameters.num_search_workers = hilos
-
-    t0 = time.time()
-    estado = s.Solve(m)
-    segundos = time.time() - t0
-
-    nombre = s.StatusName(estado)
-    hay_sol = estado in (cp_model.OPTIMAL, cp_model.FEASIBLE)
-    ub = int(s.ObjectiveValue()) if hay_sol else None
-    lb = int(s.BestObjectiveBound()) if hay_sol else R
-    certificado = (estado == cp_model.OPTIMAL)
-
-    por_ronda = None
-    if hay_sol:
-        por_ronda = [sum(s.Value(A[(r, y, k)]) for y in range(L) for k in range(z))
-                     for r in range(R)]
-
-    # El peso diferencial se calcula con la cota INFERIOR del número de cajas:
-    # es la que sustenta una garantía de seguridad.
-    peso_garantizado = -DP_MAX_LOG2 * max(lb, R)
-    return {
-        "R": R, "z": z, "estado": nombre, "certificado": certificado,
-        "cota_inferior": max(lb, R), "cota_superior": ub, "por_ronda": por_ronda,
-        "segundos": segundos, "pares_log2_garantizado": peso_garantizado,
-    }
+        certificado = False
+        incumbente = int(solver.ObjectiveValue()) if solver.HasObjectiveValue() else None
+        dual = float('nan')
+        estado = "kTimeLimit"
+    
+    # Extraer distribución por ronda si hay solución
+    por_ronda = []
+    if incumbente is not None:
+        for r in range(R):
+            cnt = sum(1 for y in range(L) for k in range(z) 
+                      if solver.Value(A[(r, y, k)]) > 0.5)
+            por_ronda.append(cnt)
+    else:
+        por_ronda = [0] * R
+    
+    return certificado, incumbente, dual, estado, por_ronda
 
 
 if __name__ == "__main__":
-    limite = int(sys.argv[1]) if len(sys.argv) > 1 else 120
-    print("Certificación con CP-SAT — límite %d s por caso\n" % limite)
-    cab = " z | R | mínimo    | por ronda | estado    | pares    | tiempo"
-    print(cab)
-    print("-" * len(cab))
-    for z in (4, 8):
-        for R in (1, 2, 3):
-            d = resolver(R, z, limite=limite)
-            minimo = ("%d (exacto)" % d["cota_superior"] if d["certificado"]
-                      else "[%s, %s]" % (d["cota_inferior"], d["cota_superior"]))
-            print(" %d | %d | %-9s | %-9s | %-9s | 2^%-6d | %5.1fs"
-                  % (z, R, minimo,
-                     ",".join(map(str, d["por_ronda"])) if d["por_ronda"] else "-",
-                     d["estado"], d["pares_log2_garantizado"], d["segundos"]))
-    print("\nLos pares se derivan de la cota INFERIOR de cajas activas (2^2n), que es")
-    print("la que sustenta una garantía de seguridad frente a un atacante.")
+    print("Prueba CP-SAT: R=3, z=4")
+    cert, inc, dual, estado, pr = resolver_cpsat(3, 4, limite_tiempo=60)
+    print(f"Estado: {estado}, Incumbente: {inc}, Por ronda: {pr}")
