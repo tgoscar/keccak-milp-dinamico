@@ -16,14 +16,15 @@
 \renewcommand{\tablename}{TABLA}
 \renewcommand{\figurename}{Fig.}
 \renewcommand{\refname}{Referencias}
-\renewcommand{\appendixname}{Anexo}
+\renewcommand{\appendixname}{Ap\'endice}
 
 \newcommand{\Fdos}{\mathbb{F}_2}
 \newcommand{\xor}{\oplus}
 
 \begin{document}
 
-\title{Análisis diferencial mediante MILP de una variante de Keccak/SHA-3 dinámico}
+\title{Análisis diferencial mediante MILP de una variante de Keccak/SHA-3\\
+con número de rondas dinámico}
 
 \author{\IEEEauthorblockN{Oscar Toledo}
 \IEEEauthorblockA{Maestría en Ciencias de la Computación\\
@@ -40,14 +41,15 @@ y sus variables dinámicas, el rediseño de la capa lineal ($\theta,\rho,\pi$) a
 sobre palabras reducidas de $z$ bits, y el tratamiento de la capa no lineal ($\chi$)
 mediante su Tabla de Distribución de Diferencias (DDT). Sobre esta base se construye un
 modelo de Programación Lineal Entera Mixta (MILP) que minimiza el número de cajas-S
-activas, para $R\in\{1,\dots,10\}$ rondas y $z\in\{4,8\}$ bits. La reformulación de la
-DDT mediante la envolvente convexa (Convex Hull) permite que el MILP certifique el
-óptimo en todos los casos: el mínimo es exactamente $R$ cajas activas, para cada $R$ y
-cada $z$. Traducido a complejidad de datos, el ataque diferencial pasa de $\sim2^{2}$
-pares con una ronda a $\sim2^{20}$ pares con diez rondas, lo que confirma que la
-variante endurece la primitiva a medida que aumentan los intentos fallidos. Se
-documentan asimismo cuatro defectos de implementación e interpretación detectados
-durante el desarrollo, junto con sus correcciones.
+activas, para $R\in\{1,2,3\}$ rondas y $z\in\{4,8\}$ bits. El MILP certifica el óptimo
+para $R=1$ pero no cierra el gap para $R\ge2$, por lo que la misma formulación se
+resuelve además con CP-SAT, que certifica los seis casos: el mínimo es $1$ caja activa para
+$R=1$, $4$ para $R=2$, y $9$ y $10$ para $R=3$ con $z=4$ y $z=8$ respectivamente. Traducido a complejidad de datos, el ataque
+diferencial pasa de $\sim2^{2}$ pares con una ronda a $\sim2^{18}$ con tres, lo que
+confirma que la variante endurece la primitiva a medida que aumentan los intentos
+fallidos, aunque en una magnitud sensiblemente menor de lo que sugerían cotas no
+certificadas. Se documentan asimismo cuatro defectos de implementación e interpretación
+detectados durante el desarrollo, junto con sus correcciones.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -67,15 +69,9 @@ La resistencia de Keccak frente a criptoanálisis diferencial se mide, en buena 
 por el \emph{número mínimo de cajas-S activas} en $\chi$: cada caja activa acota la
 probabilidad de la trayectoria diferencial y, por tanto, eleva el número de pares que
 un atacante necesita. Determinar ese mínimo es un problema de optimización combinatoria
-que admite formulación como MILP \cite{mouha}. Sin embargo, la codificación directa de
-la DDT mediante variables de selección y restricciones \emph{big-M} produce una
-relajación lineal muy débil, lo que impide la certificación de optimalidad más allá de
-unas pocas rondas \cite{mouha}. En este trabajo se muestra que, al reformular la DDT
-mediante la envolvente convexa de sus transiciones válidas, el MILP se vuelve
-\textit{totalmente unimodular} en esa parte, permitiendo que el solver HiGHS certifique
-el óptimo para hasta $10$ rondas en tiempos del orden de segundos.
+que admite formulación como MILP \cite{mouha}.
 
-El análisis se aplica a una variante de Keccak con \emph{rondas dinámicas}, en la que el
+Este trabajo analiza una variante de Keccak con \emph{rondas dinámicas}, en la que el
 número de rondas se incrementa conforme se acumulan intentos fallidos de autenticación.
 El objetivo es cuantificar si dicha variante es efectivamente más segura, y en qué
 magnitud. La exposición sigue cinco ejes: la modificación y sus variables dinámicas
@@ -119,7 +115,7 @@ constante y no interviene en la propagación de diferencias, por lo que se omite
 modelo diferencial sin pérdida de exactitud. Segundo, el rango dinámico
 de~\eqref{eq:rondas} es muy inferior a las $24$ rondas del estándar: la variante no
 pretende igualar a SHA-3, sino graduar el coste. En consecuencia, la pregunta relevante
-no es si $R\le10$ es seguro en términos absolutos, sino \emph{cuánta} seguridad
+no es si $R\le3$ es seguro en términos absolutos, sino \emph{cuánta} seguridad
 diferencial aporta cada incremento de $R$, que es precisamente lo que cuantifica el
 modelo MILP.
 
@@ -177,8 +173,9 @@ gaussiana sobre $\Fdos$, obteniendo rango pleno en ambos casos: $100$ para $z=4$
 para $z=8$. Por tanto $\lambda$ es biyectiva. Combinado con la biyectividad de $\chi$
 (Sec.~\ref{sec:nolineal}), la ronda completa es una biyección y, en consecuencia, una
 diferencia no nula no puede anularse: cada ronda contribuye con al menos una caja-S
-activa, de modo que el mínimo para $R$ rondas es $\ge R$. El modelo MILP demostrará que
-esta cota es alcanzable.
+activa, de modo que el mínimo para $R$ rondas es $\ge R$. Esta cota inferior estructural
+se emplea en Sec.~\ref{sec:milp} para acotar por debajo los casos en que el solver no
+certifica optimalidad.
 
 \section{Rediseño de la capa no lineal}\label{sec:nolineal}
 
@@ -234,11 +231,11 @@ El modelo emplea variables binarias $D_{r,x,y,k}$ para $r=0,\dots,R$ (se requier
 capas de estado) y variables de actividad $A_{r,y,k}\in\{0,1\}$, una por caja-S. Se
 minimiza
 \begin{equation}
-\min \sum_{r=0}^{R-1} \sum_{y=0}^{4} \sum_{k=0}^{z-1} A_{r,y,k}, \tag{9}
+\min \sum_{r=0}^{R-1}\sum_{y=0}^{4}\sum_{k=0}^{z-1} A_{r,y,k},
 \end{equation}
 sujeto a la condición de no trivialidad
 \begin{equation}\label{eq:nonzero}
-\sum_{x,y,k} D_{0,x,y,k}\ \ge\ 1, \tag{10}
+\sum_{x,y,k} D_{0,x,y,k}\ \ge\ 1,
 \end{equation}
 que exige al menos un bit de diferencia en la entrada. Es preferible a fijar un bit
 concreto, pues esto último sesgaría el mínimo hacia las trayectorias que activan ese bit.
@@ -248,7 +245,7 @@ concreto, pues esto último sesgaría el mínimo hacia las trayectorias que acti
 Toda la capa lineal se expresa mediante XOR. La codificación exacta de $c=a\xor b$ sobre
 los enteros requiere una variable auxiliar $t\in\{0,1\}$:
 \begin{equation}\label{eq:xor}
-a+b-2t=c. \tag{11}
+a+b-2t=c.
 \end{equation}
 La verificación exhaustiva de~\eqref{eq:xor} confirma los cuatro casos
 $(0,0)\!\mapsto\!0$, $(0,1)\!\mapsto\!1$, $(1,0)\!\mapsto\!1$, $(1,1)\!\mapsto\!0$. Las
@@ -258,78 +255,220 @@ $\rho$ y $\pi$, al ser permutaciones, se imponen por reindexación directa:
 D^{\rho\pi}_{y,\,(2x+3y)\bmod5,\,(k+\mathrm{rot}_z[x][y])\bmod z}=\widetilde{D}_{x,y,k}.
 \end{equation}
 
-\subsection{Restricciones de la capa no lineal (convex hull)}
+\subsection{Restricciones de la capa no lineal}
 
-Para evitar la debilidad de la relajación lineal del encoding \emph{big-M}, se reformula
-la DDT mediante la \emph{envolvente convexa} de sus transiciones válidas. Para cada caja-S
-$(r,y,k)$, se define un conjunto de puntos $P=\{(a_i,b_i,\alpha_i)\}$, donde
-$(a_i,b_i)$ son todas las transiciones válidas de la DDT y $\alpha_i=1$ si $a_i\neq0$,
-$0$ en caso contrario. Se introducen variables continuas no negativas $\lambda_i$ con
-$\sum_i \lambda_i=1$. Entonces:
-\begin{align}
-v^{\mathrm{in}} &= \sum_i \lambda_i a_i,\\
-v^{\mathrm{out}} &= \sum_i \lambda_i b_i,\\
-A_{r,y,k} &= \sum_i \lambda_i \alpha_i.
-\end{align}
-Además, las variables $D_{r,i,y,k}$ y $D_{r+1,i,y,k}$ se conectan a $v^{\mathrm{in}}$ y
-$v^{\mathrm{out}}$ mediante:
+Para cada caja-S se codifican los valores enteros de las diferencias de entrada y salida,
 \begin{equation}
-v^{\mathrm{in}} = \sum_{i=0}^{4} D_{r,i,y,k} 2^i, \qquad
-v^{\mathrm{out}} = \sum_{i=0}^{4} D_{r+1,i,y,k} 2^i.
+v^{\mathrm{in}}=\sum_{i=0}^{4} D^{\rho\pi}_{i,y,k}2^{i},\qquad
+v^{\mathrm{out}}=\sum_{i=0}^{4} D_{r+1,i,y,k}2^{i},
 \end{equation}
-Esta reformulación tiene la propiedad de que el poliedro generado es \emph{integral}
-para la DDT de $\chi$, es decir, todos sus vértices son enteros. Por tanto, la
-relajación lineal del problema entero es exacta, y el MILP se resuelve como un programa
-lineal continuo. Esto elimina la necesidad de variables de selección binarias (más del
-$90\,\%$ de las variables en la codificación \emph{big-M}) y evita la debilidad de la
-relajación.
+y se fuerza que el par pertenezca al conjunto de transiciones válidas
+$\mathcal{P}=\{(a,b):\mathrm{DDT}[a][b]>0\}$. Con variables de selección
+$s_j\in\{0,1\}$ y constante $M=31$:
+\begin{align}
+&v^{\mathrm{in}}-a_j\le(1-s_j)M, \quad a_j-v^{\mathrm{in}}\le(1-s_j)M,\\
+&v^{\mathrm{out}}-b_j\le(1-s_j)M, \quad b_j-v^{\mathrm{out}}\le(1-s_j)M,\\
+&\textstyle\sum_j s_j=1.
+\end{align}
+La actividad se enlaza con la diferencia de entrada mediante
+\begin{equation}
+v^{\mathrm{in}}\le M\,A_{r,y,k},\qquad A_{r,y,k}\le v^{\mathrm{in}},
+\end{equation}
+de modo que $A_{r,y,k}=1\iff v^{\mathrm{in}}\neq0$.
 
 \subsection{Configuración experimental}
 
 El modelo se implementó en Python con PuLP y se resolvió con HiGHS~1.15.1, con límite de
-$60$~s por instancia, sobre las combinaciones $z\in\{4,8\}\times R\in\{1,\dots,10\}$. Se
-utilizó la estrategia de decisión (preguntar si existe solución con $<K$ cajas) para
-certificar optimalidad, junto con una restricción de simetría rotacional (fijar el bit
-$D_{0,0,0,0}=1$) para acelerar la búsqueda. El estado de terminación se leyó
-directamente de la interfaz del solver (\texttt{kOptimal} frente a \texttt{kInfeasible})
-y no de la etiqueta agregada por la capa de modelado.
-
-Para acelerar la ejecución de los veinte experimentos, el script \texttt{experimentos.py}
-incorpora un mecanismo de paralelización basado en \texttt{ProcessPoolExecutor}, que
-permite distribuir las instancias independientes entre varios procesos. Con un límite de
-10~s por instancia MILP, la ejecución secuencial (un único proceso) requirió 67,16~s; al
-emplear cuatro procesos en paralelo el tiempo se redujo a 22,68~s, y con el valor por
-defecto (que utiliza todos los núcleos disponibles) el tiempo total fue de 12,11~s. Esta
-optimización no altera los resultados, que son idénticos en ambos modos, pero demuestra
-la escalabilidad del código y facilita la repetición de los experimentos en distintos
-entornos.
-
-Los resultados completos se presentan en las Tablas A.I y A.II del Anexo.
+$120$~s por instancia, sobre las seis combinaciones $z\in\{4,8\}\times R\in\{1,2,3\}$. La
+implementación en CP-SAT admite además $R$ arbitrario y paralelismo, repartiendo los casos
+entre procesos y asignando a cada uno un número configurable de hilos de búsqueda. El
+estado de terminación se leyó directamente de la interfaz del solver
+(\texttt{kOptimal} frente a \texttt{kTimeLimit}), junto con su cota dual, y no de la
+etiqueta agregada por la capa de modelado, que reporta \emph{Optimal} incluso cuando solo
+se ha alcanzado el límite de tiempo.
 
 \subsection{Resultados}
 
-Los resultados experimentales se resumen en la Tabla A.I del Anexo. Para todos los casos
-con $R\ge2$ el solver certifica que el mínimo es $R$; para $R=1$ la estrategia de
-decisión devuelve \texttt{kInfeasible} para la cota $0$, lo que, combinado con la
-existencia de una trayectoria con $1$ caja (encontrada por búsqueda), certifica el
-óptimo $1$. Los tiempos son del orden de segundos incluso para $R=10$, lo que confirma
-la fortaleza de la reformulación.
+La Tabla~\ref{tab:res} resume los resultados. Para $R=1$ el solver certifica el óptimo
+con \emph{gap} nulo. Para $R\ge2$ la cota dual permanece en $0$ durante toda la
+ejecución, con \emph{gap} del $100\%$: no se certifica la optimalidad.
 
-La descomposición por ronda del óptimo revela que las trayectorias óptimas no son
-monótonas; por ejemplo, para $z=4,R=3$ es $[2,2,14]$: la última ronda concentra la
-mayor parte de las cajas. En general, la difusión de $\theta$ y la elección de
-transiciones en $\chi$ permiten que el mínimo sea exactamente $R$, es decir, una caja
-activa por ronda de media.
+\begin{table}[t]
+\caption{Mínimo de cajas-S activas (certificado con CP-SAT)}
+\label{tab:res}
+\centering
+\begin{tabular}{@{}ccccc@{}}
+\toprule
+$z$ & $R$ & Mínimo & Por ronda & Estado \\
+\midrule
+4 & 1 & $1$        & $1$     & óptimo certificado \\
+4 & 2 & $4$        & $2,2$   & óptimo certificado \\
+4 & 3 & $9$        & $2,4,3$ & óptimo certificado \\
+8 & 1 & $1$        & $1$     & óptimo certificado \\
+8 & 2 & $4$        & $2,2$   & óptimo certificado \\
+8 & 3 & $10$       & $2,4,4$ & óptimo certificado \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-\subsection{Comparación con la codificación big-M original}
+\begin{table}[t]
+\caption{Comportamiento del MILP frente a CP-SAT}
+\label{tab:comp}
+\centering
+\begin{tabular}{@{}ccccc@{}}
+\toprule
+$z$ & $R$ & MILP (120 s) & CP-SAT & Óptimo \\
+\midrule
+4 & 1 & $1$ cert.      & $1$ cert. (0,2 s)   & $1$ \\
+4 & 2 & $9$, gap 100\% & $4$ cert. (0,7 s)   & $4$ \\
+4 & 3 & $18$, gap 100\% & $9$ cert. (7,2 s)  & $9$ \\
+8 & 1 & $1$ cert.      & $1$ cert. (0,6 s)   & $1$ \\
+8 & 2 & $4$, gap 100\% & $4$ cert. (1,6 s)   & $4$ \\
+8 & 3 & sin solución   & $10$ cert. (118 s)  & $10$ \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-La versión anterior del modelo (con big-M) no cerraba el gap más allá de $R=1$,
-reportando cotas superiores muy alejadas (por ejemplo, $18$ para $z=4,R=3$). La
-reformulación convex hull eleva la cota dual desde $0$ hasta el valor óptimo,
-permitiendo la certificación. La Tabla A.II del Anexo compara los resultados del modelo
-original (big-M, $60$~s) con el modelo convex hull para los casos más representativos.
-La mejora es sustancial: el modelo convex hull certifica el óptimo en todos los casos,
-mientras que el big-M ni siquiera alcanza la cota inferior para $R\ge2$.
+El MILP certifica el óptimo únicamente para $R=1$. Para $R\ge2$ su incumbente resultó
+además poco informativo, e incluso internamente inconsistente: $9$ cajas para $z=4$ frente
+a $4$ para $z=8$, cuando un estado mayor no puede admitir un mínimo menor. La
+certificación de los cinco primeros casos se obtuvo con CP-SAT
+(Sec.~\ref{sec:cpsat}), cuyos valores figuran en la Tabla~\ref{tab:res}, y la comparación
+entre ambos enfoques en la Tabla~\ref{tab:comp}.
+
+La descomposición por ronda del óptimo merece atención. Para $R=3$, $z=4$ es $2,4,3$: la
+trayectoria óptima \emph{vuelve a estrecharse} en la última ronda en lugar de dispersarse.
+Este comportamiento invalida la intuición voraz de minimizar el peso caja por caja, que
+produce trayectorias de dispersión monótona ($2,2,14$) y una cota de $18$, el doble del
+óptimo real. La trayectoria óptima sacrifica peso en la segunda ronda ($4$ cajas en lugar
+de $2$) para poder contraerse en la tercera.
+
+\subsection{Por qué el MILP no cierra el gap}
+
+Que el solver no certifique el óptimo no implica que este no exista: el problema es
+combinatorio y finito. Lo que ocurre es que la \emph{relajación lineal} es demasiado
+débil, y la cota dual permanece fija en $0$. Concurren dos causas.
+
+La primera es el encoding \emph{big-M} de la DDT. El modelo emplea una variable binaria de
+selección por cada una de las $317$ transiciones válidas y por cada caja-S: $12\,680$ de
+las $14\,140$ variables (cerca del $90\,\%$) para $R=2$, $z=4$, y $38\,040$ para $R=3$,
+$z=8$. Las restricciones \emph{big-M} tienen relajaciones notoriamente débiles.
+
+La segunda es la paridad sobre $\Fdos$: al admitir valores fraccionarios, el problema
+continuo se satisface con objetivo cercano a cero mediante asignaciones que no
+corresponden a ninguna diferencia real $0/1$.
+
+Se ensayaron dos técnicas habituales antes de cambiar de herramienta. La reformulación
+como problema de decisión ($\sum A \le K$, preguntando factibilidad) no cerró $R=2$,
+$z=4$ en $180$~s; conviene precisar un malentendido frecuente al respecto: añadir
+$\sum A \le K$ es una cota \emph{superior} del objetivo y no aprieta la relajación por
+abajo, pues el LP sigue satisfaciéndose con objetivo cercano a cero, que cumple
+trivialmente la restricción. Su beneficio proviene de la propagación de la cardinalidad.
+La ruptura de simetría por traslación en $z$ es válida --- la ronda sin $\iota$ conmuta con
+dicha traslación --- pero la órbita tiene tamaño a lo sumo $z$, luego el ahorro máximo es
+de cuatro a ocho veces, irrelevante frente a un gap del $100\,\%$; combinada con la
+anterior tampoco cerró el caso en $240$~s. Que refutar $\sum A \le 1$ --- el caso más
+sencillo posible --- costara $92$~s calibra la dificultad del árbol de búsqueda.
+
+\subsection{Reformulación mediante envolvente convexa}\label{sec:hull}
+
+Puesto que el encoding \emph{big-M} es el principal responsable del tamaño del modelo,
+cabe sustituirlo describiendo el conjunto de transiciones válidas como la envolvente
+convexa de sus $317$ puntos en $\{0,1\}^{10}$, mediante multiplicadores
+$\lambda_j\ge0$ con $\sum_j\lambda_j=1$. La envolvente debe imponerse
+\textbf{componente a componente}, con una ecuación por cada uno de los diez bits:
+\begin{equation}\label{eq:hull}
+\sum_j \lambda_j\,a_j[i]=\Delta^{\mathrm{in}}_i,\qquad
+\sum_j \lambda_j\,b_j[i]=\Delta^{\mathrm{out}}_i,
+\end{equation}
+para $i=0,\dots,4$. Así formulada es exacta, pues para un conjunto $S$ de puntos $0/1$ se
+cumple $\mathrm{conv}(S)\cap\{0,1\}^n=S$: todo punto $0/1$ de la envolvente es vértice del
+cubo unidad y pertenece por tanto a $S$.
+
+Es importante advertir que comprimir~\eqref{eq:hull} en dos ecuaciones escalares mediante
+la codificación entera con potencias de dos \emph{invalida} el modelo. Una combinación
+convexa de los enteros $a_j$ alcanza valores que no corresponden a ninguna transición
+válida --- por ejemplo, el par $(3,1)$ no pertenece a la DDT y sin embargo es alcanzable
+como combinación convexa de pares que sí pertenecen ---, de modo que la restricción queda
+vacía. Al implementar por error esa versión, el modelo devolvía exactamente $R$ cajas
+activas para todo $R$, es decir la cota inferior estructural, y la totalidad de las
+transiciones de sus trayectorias violaba la DDT, incluyendo diferencias no nulas con
+salida nula, imposibles por ser $\chi$ biyectiva. El episodio ilustra una precaución
+metodológica: un valor que coincide con la cota trivial en todos los casos merece
+desconfianza, y la comprobación decisiva no es el estado que informe el solver sino la
+auditoría de la trayectoria contra la DDT.
+
+Correctamente formulada, la envolvente convexa mejora sobre el \emph{big-M} --- cota de
+$7$ frente a $9$ para $R=2$, $z=4$ --- pero no certifica en $200$~s. Es válida y más
+compacta, mas no suficiente.
+
+\subsection{Certificación mediante CP-SAT}\label{sec:cpsat}
+
+La misma formulación se implementó en CP-SAT (OR-Tools) \cite{ortools}, que dispone de
+restricciones nativas para las dos estructuras que el MILP codifica con dificultad: el XOR
+(\texttt{AddBoolXOr}, sin variables auxiliares) y la tabla de transiciones de $\chi$
+(\texttt{AddAllowedAssignments} con las $317$ tuplas válidas, sin \emph{big-M} ni
+variables de selección). Esto elimina cerca del $90\,\%$ de las variables y permite al
+solver aprender cláusulas sobre la estructura XOR.
+
+El resultado es concluyente (Tabla~\ref{tab:comp}): CP-SAT certifica la optimalidad de los
+seis casos, con tiempos entre $0{,}2$ y $118$~s, incluidos aquellos en que el MILP no
+cerraba en $120$~s o no hallaba solución alguna. El problema, por tanto, no era
+intrínsecamente intratable: lo era su formulación como MILP.
+
+Se conservan ambos modelos: el MILP es la formulación requerida y CP-SAT la herramienta de
+certificación. La distinción metodológica es la relevante: una cota superior es la
+perspectiva del \emph{atacante} (existe una trayectoria con $n$ cajas), mientras que una
+garantía de seguridad exige la cota inferior demostrada, la perspectiva del
+\emph{defensor} (ninguna trayectoria tiene menos de $n$ cajas). Al ser exactos, los seis
+valores de la Tabla~\ref{tab:res} proporcionan ambas simultáneamente.
+
+\subsection{Monotonía y extensión a más rondas}\label{sec:monotonia}
+
+El mínimo $m(R)$ es no decreciente en $R$: truncar una trayectoria de $R+1$ rondas produce
+una trayectoria válida de $R$ rondas con un número de cajas activas menor o igual, de donde
+$m(R+1)\ge m(R)$. En consecuencia, toda cota inferior demostrada se propaga a las rondas
+superiores:
+\begin{equation}\label{eq:monotonia}
+m(R)\ \ge\ \max\{\,LB(r)\;:\;r\le R\,\}.
+\end{equation}
+
+Esta observación tiene valor práctico: certificar $m(3)=9$ para $z=4$ --- un caso
+abordable --- garantiza $m(R)\ge9$ para todo $R\ge3$, y con ello una complejidad de datos
+de al menos $2^{18}$ pares en cualquier número superior de rondas, sin necesidad de
+resolver esos casos.
+
+La Tabla~\ref{tab:ext} recoge la exploración hasta $R=10$ con $z=4$, con las cotas
+inferiores ya consolidadas según~\eqref{eq:monotonia}. Los casos $R\ge4$ se ejecutaron con
+un presupuesto de unos $35$~s cada uno, de modo que sus cotas superiores son flojas y no
+deben interpretarse como estimaciones del óptimo; las inferiores, en cambio, están
+demostradas.
+
+\begin{table}[t]
+\caption{Extensión a $R\le10$ con $z=4$ (cotas inferiores consolidadas)}
+\label{tab:ext}
+\centering
+\begin{tabular}{@{}cccc@{}}
+\toprule
+$R$ & Mínimo & Estado & Pares garantizados \\
+\midrule
+1  & $1$        & certificado & $2^{2}$  \\
+2  & $4$        & certificado & $2^{8}$  \\
+3  & $9$        & certificado & $2^{18}$ \\
+4  & $[9,14]$   & cota        & $2^{18}$ \\
+5  & $[9,35]$   & cota        & $2^{18}$ \\
+6  & $[9,61]$   & cota        & $2^{18}$ \\
+7  & $[11,64]$  & cota        & $2^{22}$ \\
+8  & $[13,86]$  & cota        & $2^{26}$ \\
+9  & $[13,103]$ & cota        & $2^{26}$ \\
+10 & $[13,111]$ & cota        & $2^{26}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Para $z=8$, el óptimo certificado $m(3)=10$ garantiza $m(R)\ge10$ para todo $R\ge3$; las
+cotas superiores obtenidas con el mismo presupuesto crecen hasta $282$ en $R=10$, lo que
+refleja la dificultad creciente del problema más que una estimación del mínimo.
 
 \section{Justificación de la variante}\label{sec:justificacion}
 
@@ -349,40 +488,37 @@ activas es, por tanto, una medida directa de la complejidad de datos.
 
 \subsection{Efecto de la variable dinámica}
 
-La Tabla~\ref{tab:seg} traduce el contador de intentos a esta métrica para $R=1,2,3$,
-que son los rangos definidos por la variante. Para $R\ge4$ se incluye a modo de
-extrapolación, aunque la variante no los utiliza.
+La Tabla~\ref{tab:seg} traduce el contador de intentos a esta métrica.
 
-\begin{table}[h]
-\centering
-\footnotesize
+\begin{table}[t]
 \caption{Intentos $\to$ rondas $\to$ resistencia diferencial}
 \label{tab:seg}
+\centering
 \begin{tabular}{@{}ccccc@{}}
 \toprule
 Intentos & $R$ & Cajas ($n$) & $\Pr\le 2^{-2n}$ & Pares $\approx 2^{2n}$ \\
 \midrule
 $<10$      & 1 & $1$ (exacto)          & $2^{-2}$        & $2^{2}$ \\
-$10$--$19$ & 2 & $2$ (exacto)          & $2^{-4}$        & $2^{4}$ \\
-$20$--$29$ & 3 & $3$ (exacto)          & $2^{-6}$        & $2^{6}$ \\
-(extrap.)  & 10& $10$ (exacto)         & $2^{-20}$       & $2^{20}$ \\
+$10$--$19$ & 2 & $4$ (exacto)          & $2^{-8}$        & $2^{8}$ \\
+$20$--$29$ & 3 & $9$ (exacto, $z{=}4$) & $2^{-18}$       & $2^{18}$ \\
+           &   & $10$ (exacto, $z{=}8$) & $2^{-20}$      & $2^{20}$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-El crecimiento es exponencial con $R$. Al pasar de una a tres rondas, la complejidad de
-datos del ataque diferencial óptimo asciende de $2^{2}$ a $2^{6}$ pares, es decir, de
-unas pocas unidades a $64$ pares. Este salto es moderado, pero si se extrapola a $R=10$
-se alcanzan $2^{20}\approx10^6$ pares, lo que muestra la tendencia. La razón
+El crecimiento es superlineal. Al pasar de una a tres rondas, la complejidad de datos del
+ataque diferencial óptimo asciende de $2^{2}$ a $2^{18}$ pares con $z=4$ (y a $2^{20}$ con
+$z=8$), es decir, de unas pocas unidades a $\sim 10^{5}$--$10^{6}$: dieciséis a dieciocho
+órdenes binarios de magnitud. La razón
 estructural es doble: la biyectividad garantiza que las diferencias no puedan anularse, y
 la difusión de $\theta$ las dispersa entre filas, activando cajas-S adicionales.
 
-Conviene subrayar que las cifras certificadas son notablemente inferiores a las que
-arrojaban las cotas no certificadas obtenidas por búsqueda voraz (por ejemplo, $18$
-cajas para $R=3,z=4$ frente al $3$ real). La certificación no sólo aporta rigor:
-corrige a la baja la estimación de seguridad en quince órdenes binarios. Es una
-advertencia sobre el uso de cotas superiores flojas como aproximación del óptimo,
-precisamente porque la garantía de seguridad depende de la cota inferior.
+Conviene subrayar que estas cifras son sensiblemente inferiores a las que arrojaban las
+cotas no certificadas obtenidas por búsqueda voraz ($2^{36}$ para $R=3$, $z=4$). La
+certificación no sólo aporta rigor: corrige a la baja la estimación de seguridad en
+dieciocho órdenes binarios. Es una advertencia sobre el uso de cotas superiores flojas
+como aproximación del óptimo, precisamente porque la garantía de seguridad depende de la
+cota inferior.
 
 En estos términos, la variante \emph{sí} cumple su objetivo de diseño: el mecanismo
 adaptativo endurece la primitiva de forma sustancial precisamente cuando el patrón de
@@ -391,17 +527,16 @@ intentos fallidos sugiere un ataque en curso.
 \subsection{Alcance y limitaciones de la afirmación}
 
 Por rigor, la conclusión debe acotarse en tres sentidos. Primero, la comparación es
-\emph{relativa} entre $R=1,2,3$; con $R=3$ y $z=4$ el óptimo certificado de $3$ cajas
-implica $\sim2^{6}$ pares, que es un número muy reducido. La variante no alcanza un
-margen de seguridad utilizable hasta rondas más altas; por ejemplo, $R=10$ da $2^{20}$
-pares, todavía muy lejos de las $24$ rondas del estándar. Segundo, los resultados
-corresponden a versiones reducidas: no se ha analizado $w=64$, cuyo tamaño de estado
-excede lo que el modelo aquí empleado puede certificar (aunque la reformulación convex
-hull es escalable). Tercero, el reescalado de los desplazamientos de $\rho$
-(Sec.~\ref{sec:lineal}) degrada la difusión respecto del estándar, especialmente con
-$z=4$, donde siete carriles no se rotan. La afirmación sostenible es que la variante
-incrementa la resistencia diferencial de manera monótona con los intentos, no que
-alcance niveles de seguridad equiparables a SHA-3.
+\emph{relativa} entre $R=1,2,3$; ninguna de las tres configuraciones se aproxima a las
+$24$ rondas del estándar. Con $R=3$ y $z=4$ el óptimo certificado de $9$ cajas implica
+$\sim2^{18}$ pares: suficiente para observar el efecto de la variable dinámica, pero muy
+lejos de un margen de seguridad utilizable; y $R=1$ es directamente inservible ($\sim4$
+pares). Segundo, los resultados corresponden a versiones reducidas: no se ha analizado
+$w=64$, cuyo tamaño de estado excede lo que el modelo aquí empleado puede certificar.
+Tercero, el reescalado de los desplazamientos de $\rho$ (Sec.~\ref{sec:lineal}) degrada la difusión
+respecto del estándar, especialmente con $z=4$, donde siete carriles no se rotan. La
+afirmación sostenible es que la variante incrementa la resistencia diferencial de manera
+monótona con los intentos, no que alcance niveles de seguridad equiparables a SHA-3.
 
 Debe señalarse además que el mecanismo introduce una consideración ajena al análisis
 diferencial: al depender el número de rondas de un contador observable, el tiempo de
@@ -428,11 +563,18 @@ determinado puede arrojar un mínimo estrictamente mayor que el global.
 \item \textbf{Cotas voraces tomadas como definitivas.} No es un defecto de código sino de
 interpretación, cometido en este trabajo y corregido tras la certificación. La búsqueda que
 elige en cada caja la salida válida de menor peso de Hamming produce cotas correctas pero
-lejanas al óptimo: $14$ frente a $3$ para $R=3$, $z=4$, un factor $4$. La decisión local
-ignora su efecto sobre las rondas siguientes, y la trayectoria óptima no es monótona.
-Una cota superior no certificada no debe presentarse como aproximación del óptimo sin
-una estimación de su error.
+lejanas al óptimo: $18$ frente a $9$ para $R=3$, $z=4$, un factor $2$. La decisión local
+ignora su efecto sobre las rondas siguientes, y la trayectoria óptima hace lo contrario de
+lo que sugiere la heurística. Una cota superior no certificada no debe presentarse como
+aproximación del óptimo sin una estimación de su error.
 \end{enumerate}
+
+Debe añadirse una advertencia de naturaleza distinta, relativa a la interpretación de la
+salida del solver. La capa de modelado empleada informa el estado \emph{Optimal} aunque el
+solver sólo haya alcanzado el límite de tiempo con gap del $100\,\%$; en un caso reportó
+«$9$, óptimo» cuando el registro del propio solver indicaba \texttt{Time limit reached},
+cota dual $0$. Todos los estados de terminación de este trabajo se leen directamente de la
+interfaz del solver.
 
 Como control de correctitud del núcleo, la implementación de SHA-3-256 con los cinco
 pasos separados se validó contra la biblioteca estándar, coincidiendo en todos los
@@ -441,98 +583,53 @@ vectores de prueba (FIPS 202).
 \section{Conclusiones y trabajo futuro}
 
 Se construyó un modelo MILP para el análisis diferencial de una variante de Keccak con
-rondas dinámicas, empleando una reformulación de la DDT de $\chi$ mediante envolvente
-convexa que elimina la debilidad de la relajación lineal del encoding \emph{big-M}. Las
-conclusiones son:
+rondas dinámicas, empleando la DDT de $\chi$ para representar exactamente las
+transiciones válidas de la capa no lineal. Las conclusiones son:
 
 \begin{enumerate}
-\item El mínimo de cajas-S activas está certificado en todos los casos evaluados
-($z\in\{4,8\}$, $R=1,\dots,10$): es exactamente $R$. La cota inferior estructural es
-alcanzable.
-\item La reformulación convex hull convierte el MILP en un problema esencialmente
-lineal, permitiendo que HiGHS certifique optimalidad en tiempos del orden de segundos,
-incluso para $R=10$.
+\item El mínimo de cajas-S activas está certificado en los seis casos: $1$ para $R=1$, $4$
+para $R=2$ (ambos tamaños de palabra), $9$ para $R=3$ con $z=4$ y $10$ con $z=8$. Una ronda
+es criptográficamente insuficiente.
+\item El MILP resultó inadecuado para certificar más allá de $R=1$, no por la primitiva
+sino por su encoding: cerca del $90\,\%$ de sus variables corresponden a la codificación
+\emph{big-M} de la DDT, y la paridad sobre $\Fdos$ se relaja muy mal. Ni la reformulación
+como problema de decisión ni la ruptura de simetría bastaron. CP-SAT, con XOR nativo y
+$\chi$ como restricción de tabla, certifica en segundos lo que el MILP no cierra en
+minutos.
 \item La variable dinámica cumple su propósito: la complejidad de datos del ataque
-diferencial óptimo crece exponencialmente con $R$, aunque con magnitudes moderadas:
-para $R=3$ son $64$ pares, para $R=10$ son $\sim10^6$ pares. La variante endurece la
-primitiva, pero sigue muy lejos de las $24$ rondas del estándar.
+diferencial óptimo crece de $2^{2}$ a $2^{18}$ pares al pasar de una a tres rondas. La
+magnitud, sin embargo, es dieciocho órdenes binarios inferior a la que sugerían las cotas
+no certificadas, lo que ilustra el riesgo de emplear cotas superiores flojas como
+estimación de seguridad.
 \item La reducción del tamaño de palabra degrada la difusión de $\rho$, efecto que debe
 tenerse en cuenta al extrapolar los resultados a $w=64$.
+\item La monotonía de $m(R)$ permite convertir un único caso certificado en una garantía
+para todas las rondas superiores, lo que extiende el alcance del análisis a $R\le10$ sin
+resolver cada caso: con $z=4$ se garantizan $2^{18}$ pares desde $R=3$ y $2^{26}$ desde
+$R=8$.
+\item La reformulación de $\chi$ mediante envolvente convexa reduce el tamaño del modelo
+y mejora la cota, pero exige imponerse componente a componente; su versión escalar deja la
+restricción de la DDT vacía y produce resultados espurios.
 \end{enumerate}
 
 Como trabajo futuro, el camino natural es extender la certificación a más rondas y a
 tamaños de palabra mayores, para lo que probablemente sea necesario explotar la estructura
-del \emph{column-parity kernel} de Keccak. Sería igualmente pertinente extender el análisis
-a criptoanálisis lineal y evaluar el canal lateral temporal introducido por el número
-variable de rondas.
+del \emph{column-parity kernel} de Keccak. Si se deseara mantener el enfoque MILP, una vía
+concreta de mejora es sustituir el encoding \emph{big-M} de $\chi$ aprovechando que el
+conjunto de diferencias de salida válidas es, para cada diferencia de entrada, un subespacio
+afín de $\Fdos^5$ de dimensión $2$, $3$ o $4$; ello permitiría reemplazar las $317$
+variables de selección por unas pocas ecuaciones lineales. Sería igualmente pertinente
+extender el análisis a criptoanálisis lineal y evaluar el canal lateral temporal introducido
+por el número variable de rondas.
 
 \section*{Disponibilidad del código}
 
-La implementación completa --- núcleo SHA-3 verificado, cálculo de la DDT, modelo MILP
-con convex hull, búsqueda de trayectorias y \emph{scripts} de los experimentos --- se
-encuentra disponible en el repositorio del proyecto:
+La implementación completa --- núcleo SHA-3 verificado, cálculo de la DDT, modelo MILP,
+búsqueda de trayectorias y \emph{scripts} de los experimentos --- se encuentra disponible
+en el repositorio del proyecto:
 \begin{center}
 \url{https://github.com/tgoscar/keccak-milp-dinamico}
 \end{center}
-
-% ====================== ANEXO ======================
-\appendix
-\section{Tablas de resultados completos}
-
-\begin{table*}[t]
-\centering
-\footnotesize
-\caption{Mínimo de cajas-S activas certificado por el MILP (datos completos hasta $R=10$).}
-\label{tab:anexoI}
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{@{}ccccccc@{}}
-\toprule
-$z$ & $R$ & Mínimo & Por ronda & $\log_2(\Pr)$ & $\log_2(\text{Pares})$ & Tiempo (s) \\
-\midrule
-4 & 1  & 1  & [1]                         & -2  & 2  & 0.30 \\
-4 & 2  & 2  & [2,2]                       & -4  & 4  & 1.36 \\
-4 & 3  & 3  & [2,2,14]                    & -6  & 6  & 1.89 \\
-4 & 4  & 4  & [2,2,13,17]                 & -8  & 8  & 2.64 \\
-4 & 5  & 5  & [2,2,13,17,20]              & -10 & 10 & 3.11 \\
-4 & 6  & 6  & [2,2,10,20,18,19]           & -12 & 12 & 3.88 \\
-4 & 7  & 7  & [2,2,15,20,20,19,20]        & -14 & 14 & 4.42 \\
-4 & 8  & 8  & [2,2,13,20,20,20,20,20]     & -16 & 16 & 5.24 \\
-4 & 9  & 9  & [2,2,10,20,18,19,20,19,20]  & -18 & 18 & 5.40 \\
-4 & 10 & 10 & [2,2,10,20,18,19,20,19,20,18] & -20 & 20 & 5.93 \\
-\addlinespace
-8 & 1  & 1  & [1]                         & -2  & 2  & 0.55 \\
-8 & 2  & 2  & [2,2]                       & -4  & 4  & 2.51 \\
-8 & 3  & 3  & [2,2,16]                    & -6  & 6  & 3.88 \\
-8 & 4  & 4  & [2,2,17,40]                 & -8  & 8  & 4.75 \\
-8 & 5  & 5  & [2,2,12,38,38]              & -10 & 10 & 6.16 \\
-8 & 6  & 6  & [2,2,17,40,39,40]           & -12 & 12 & 6.94 \\
-8 & 7  & 7  & [2,10,25,39,38,37,38]       & -14 & 14 & 7.87 \\
-8 & 8  & 8  & [2,2,12,38,38,38,39,35]     & -16 & 16 & 9.10 \\
-8 & 9  & 9  & [2,2,12,38,38,38,39,35,40]  & -18 & 18 & 9.83 \\
-8 & 10 & 10 & [2,2,12,38,38,38,39,35,40,40] & -20 & 20 & 10.77 \\
-\bottomrule
-\end{tabular}%
-}
-\end{table*}
-
-\begin{table*}[t]
-\centering
-\footnotesize
-\caption{Comparación entre la codificación original (big-M) y la reformulación mediante envolvente convexa.}
-\label{tab:anexoII}
-\resizebox{0.7\textwidth}{!}{%
-\begin{tabular}{@{}cccccc@{}}
-\toprule
-$z$ & $R$ & Big-M (cota sup) & Big-M (cert.) & Convex hull (cota) & Convex hull (cert.) \\
-\midrule
-4 & 2 & 4  & No & 2 & Sí \\
-4 & 3 & 18 & No & 3 & Sí \\
-8 & 2 & 4  & No & 2 & Sí \\
-8 & 3 & 20 & No & 3 & Sí \\
-\bottomrule
-\end{tabular}%
-}
-\end{table*}
 
 \begin{thebibliography}{9}
 \bibitem{fips202} National Institute of Standards and Technology, \emph{SHA-3 Standard:
@@ -542,8 +639,14 @@ Reference}, versión 3.0, 2011.
 \bibitem{mouha} N. Mouha, Q. Wang, D. Gu y B. Preneel, ``Differential and linear
 cryptanalysis using mixed-integer linear programming,'' en \emph{Inscrypt}, 2011,
 pp. 57--76.
+\bibitem{daemen} J. Daemen y G. Van Assche, ``Differential propagation analysis of
+Keccak,'' en \emph{Fast Software Encryption (FSE)}, 2012, pp. 422--441.
+\bibitem{cube} S. Li, X. Dong y Z. Liu, ``New MILP modeling: improved conditional
+cube attacks on Keccak-based constructions,'' IACR ePrint 2017/1030, 2017.
 \bibitem{highs} Q. Huangfu y J. A. J. Hall, ``Parallelizing the dual revised simplex
 method,'' \emph{Mathematical Programming Computation}, vol. 10, pp. 119--142, 2018.
+\bibitem{ortools} L. Perron y F. Didier, \emph{CP-SAT}, Google OR-Tools. [En línea].
+Disponible: \url{https://developers.google.com/optimization/cp/cp_solver}
 \end{thebibliography}
 
 \end{document}

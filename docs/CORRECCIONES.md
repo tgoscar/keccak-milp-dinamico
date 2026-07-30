@@ -235,3 +235,76 @@ especialmente delicado, porque la cifra de seguridad depende de la cota **inferi
 cota superior floja puede dar una falsa sensación de holgura.
 
 **Verificación:** `test_cotas_voraces_no_son_optimas`, `test_cpsat_certifica_optimos`.
+
+---
+
+## 6. Envolvente convexa colapsada en escalares
+
+Defecto introducido al intentar sustituir el encoding *big-M* de $\chi$ por una
+reformulación mediante envolvente convexa, y detectado al contrastar sus resultados con
+los óptimos ya certificados por CP-SAT.
+
+### Código defectuoso
+
+```python
+vin_expr  = pulp.lpSum(lambdas[i] * a for i, (a, _) in enumerate(pares))
+vout_expr = pulp.lpSum(lambdas[i] * b for i, (_, b) in enumerate(pares))
+prob += vin_expr  == pulp.lpSum(D[(r, i, y, k)] * (1 << i) for i in range(L))
+prob += vout_expr == pulp.lpSum(D[(r + 1, i, y, k)] * (1 << i) for i in range(L))
+act_expr = pulp.lpSum(lambdas[i] * (1 if a != 0 else 0) for i, (a, _) in enumerate(pares))
+prob += A[(r, y, k)] == act_expr
+```
+
+### Diagnóstico
+
+Dos fallos independientes, cada uno suficiente para invalidar el modelo.
+
+**La restricción de la DDT queda vacía.** Las diez ecuaciones de bit se colapsan en dos
+ecuaciones escalares mediante potencias de dos. Una combinación convexa de los enteros
+$a_j$ alcanza valores que no corresponden a ninguna transición válida: por ejemplo
+$(a,b) = (3,1)$ no está en la DDT, y sin embargo es alcanzable como combinación convexa
+de pares que sí lo están.
+
+**La actividad se desconecta de la diferencia real.** $A$ se calcula a partir de los
+multiplicadores $\lambda$ en lugar de los bits de entrada, de modo que el objetivo deja
+de contar las cajas realmente activas.
+
+### Evidencia medida
+
+Para $R = 2$, $z = 4$:
+
+| Comprobación | Resultado |
+|---|---|
+| Objetivo que devuelve el modelo | **2** |
+| Óptimo certificado por CP-SAT | **4** |
+| Transiciones de $\chi$ que violan la DDT | **16 de 16** |
+| Filas con diferencia no nula frente a las que cuenta el objetivo | **16** reales / **2** contadas |
+
+Entre las transiciones aparecía `Din=16 → Dout=0`: una diferencia no nula que se anula,
+imposible porque $\chi$ es biyectiva. Es la misma clase de error que la omisión de la
+negación en $\chi$ (defecto 2 del modelo de $\chi$-imagen).
+
+El síntoma delator era que el modelo devolvía exactamente $R$ cajas activas para todo
+$R$ —el mínimo estructural—, mientras la búsqueda heurística, que sí es correcta,
+encontraba trayectorias de 140 cajas para $R = 6$. Una discrepancia de ese orden no es
+una mejora de modelado.
+
+### Corrección
+
+Imponer la envolvente **componente a componente** (una ecuación por bit) y derivar la
+actividad de los bits reales de entrada. Véase `construir_milp_hull()` en
+`src/milp_keccak.py` y `docs/MODELO.md`, §10. Corregida, la formulación es válida —cota
+de 7 para $R{=}2$, $z{=}4$, por encima del óptimo real 4— pero no certifica en 200 s, de
+modo que no reemplaza a CP-SAT.
+
+### Lección
+
+Un resultado que coincide exactamente con la cota inferior trivial del problema para
+todos los casos merece desconfianza inmediata, sobre todo si mejora en un orden de
+magnitud lo que encuentra un método más simple y ya validado. La comprobación decisiva
+no es que el solver informe `OPTIMAL`, sino **auditar la solución**: aquí bastó verificar
+las transiciones de la trayectoria contra la DDT, para lo que existe
+`trayectoria_es_valida()`.
+
+**Verificación:** `test_hull_escalar_admite_transiciones_invalidas`,
+`test_hull_por_componentes_rechaza_transiciones_invalidas`.

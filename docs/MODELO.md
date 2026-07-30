@@ -1,162 +1,324 @@
-\# Modelo MILP para Keccak dinámico
+# Formulación del modelo MILP
 
+## 1. La variante analizada
 
+El número de rondas depende del contador de intentos fallidos $I$:
 
-\## Visión general
+$$R(I) = \begin{cases} 1 & I < 10 \\ 2 & 10 \le I < 20 \\ 3 & 20 \le I < 30 \end{cases}$$
 
+Cada ronda aplica $\theta, \rho, \pi, \chi$. El paso $\iota$ se omite del modelo
+diferencial: suma una constante fija, y al considerar la diferencia entre dos estados esa
+constante se cancela.
 
+El tamaño de palabra se reduce a $z \in \{4, 8\}$, dando Keccak-f[100] y Keccak-f[200]
+—estados de 100 y 200 bits— con $5z$ cajas-S por ronda (20 y 40 respectivamente).
 
-El modelo de Programación Lineal Entera Mixta (MILP) minimiza el número de cajas‑S activas en la capa no lineal $\\chi$ para una variante de Keccak con `R` rondas y tamaño de palabra `z`.
+## 2. Variables
 
+| Variable | Dominio | Significado |
+|---|---|---|
+| $D_{r,x,y,k}$ | $\{0,1\}$ | diferencia en el bit $k$ del carril $(x,y)$ en la ronda $r$; $r = 0,\dots,R$ |
+| $A_{r,y,k}$ | $\{0,1\}$ | la caja-S de la fila $y$, bit $k$, está activa en la ronda $r$ |
+| $t_{\bullet}$ | $\{0,1\}$ | auxiliares de los XOR |
+| $v^{\mathrm{in}}, v^{\mathrm{out}}$ | $\{0,\dots,31\}$ | valor entero de las diferencias de entrada/salida de cada caja-S |
+| $s_j$ | $\{0,1\}$ | selección de la transición $j$ de la DDT |
 
+Se requieren $R+1$ capas de estado: la entrada más la salida de cada ronda.
 
-\## Variables
+## 3. Codificación exacta del XOR
 
+Todas las capas lineales se reducen a XOR. Sobre los enteros, $c = a \oplus b$ se codifica
+con una variable auxiliar binaria $t$:
 
+$$a + b - 2t = c$$
 
-\- \*\*$D\_{r,x,y,k} \\in \\{0,1\\}$\*\*: diferencia en el bit `k` del carril `(x,y)` en la capa `r` (r = 0..R).
+Verificación de los cuatro casos: si $a + b = 0$ entonces $t = 0, c = 0$; si $a + b = 1$
+entonces $t = 0, c = 1$; si $a + b = 2$ entonces $t = 1, c = 0$. Es exacta y usa una sola
+variable auxiliar por operación.
 
-\- \*\*$A\_{r,y,k} \\in \\{0,1\\}$\*\*: actividad de la caja‑S en la fila `y`, bit `k`, ronda `r` (r = 0..R‑1).
+Para el XOR de $m$ entradas se encadenan $m-1$ aplicaciones. (Una alternativa más compacta
+es la restricción de paridad $\sum_i x_i - c = 2d$ con $d \in \{0, \dots, \lfloor m/2
+\rfloor\}$ entera, que emplea una sola auxiliar por XOR múltiple.)
 
+## 4. Capa lineal $\lambda = \pi \circ \rho \circ \theta$
 
+### $\theta$
 
-\## Restricciones
+Paridades de columna, corrección y aplicación:
 
+$$C_{x,k} = \bigoplus_{y=0}^{4} D_{r,x,y,k}$$
 
+$$D^{\theta}_{x,k} = C_{x-1,k} \oplus C_{x+1,\,(k-1) \bmod z}$$
 
-\### Capa lineal ($\\theta, \\rho, \\pi$)
+$$\widetilde{D}_{x,y,k} = D_{r,x,y,k} \oplus D^{\theta}_{x,k}$$
 
+con $x$ módulo 5. El desplazamiento de 1 posición dentro de $\theta$ se toma módulo $z$.
+Cada bit de salida depende de 11 bits de entrada, lo que hace de $\theta$ la principal
+fuente de difusión.
 
+### $\rho$ y $\pi$
 
-\- \*\*$\\theta$\*\*: paridades de columna y corrección con rotaciones módulo `z`.
+Son permutaciones de posición: no requieren variables nuevas, sólo reindexación.
 
-\- \*\*$\\rho + \\pi$\*\*: reindexación directa de las diferencias (permutaciones).
+$$D^{\rho\pi}_{y,\;(2x+3y) \bmod 5,\;(k + \mathrm{rot}_z[x][y]) \bmod z} = \widetilde{D}_{x,y,k}$$
 
-\- \*\*XOR\*\*: codificación exacta $a + b - 2t = c$ con $t \\in \\{0,1\\}$.
+donde $\mathrm{rot}_z[x][y] = \mathrm{ROT}[x][y] \bmod z$, con $\mathrm{ROT}$ la tabla
+estándar de desplazamientos de Keccak (especificada para $w = 64$).
 
+### Invertibilidad
 
+Construyendo explícitamente la matriz de $\lambda$ sobre $\mathbb{F}_2$ y calculando su
+rango por eliminación gaussiana se obtiene rango pleno: 100 para $z=4$ y 200 para $z=8$.
+Por tanto $\lambda$ es biyectiva.
 
-\### Capa no lineal ($\\chi$)
+Combinado con la biyectividad de $\chi$, la ronda completa es una biyección, de donde se
+sigue la **cota inferior estructural**: una diferencia no nula no puede anularse, cada
+ronda aporta al menos una caja-S activa, y el mínimo para $R$ rondas es $\ge R$.
 
+## 5. Capa no lineal $\chi$
 
+$$\chi_i = x_i \oplus (\overline{x_{i+1}} \cdot x_{i+2}), \qquad i = 0,\dots,4$$
 
-La DDT de $\\chi$ se codifica mediante \*\*envolvente convexa\*\*:
+Opera sobre filas de 5 bits a lo largo de $x$; hay $5z$ instancias por ronda. Es una
+permutación de grado algebraico 2.
 
+Se evaluaron dos linealizaciones.
 
+### 5.1 Modelo de $\chi$-imagen determinista (descartado)
 
-Para cada caja‑S, se define el conjunto de puntos $P = \\{(a\_i, b\_i, \\alpha\_i)\\}$ donde:
+Reproduce $\chi$ sobre la diferencia con compuertas auxiliares. La compuerta
+$g = \overline{a} \cdot b$ se impone con:
 
-\- $(a\_i, b\_i)$ son transiciones válidas de la DDT ($\\mathrm{DDT}\[a\_i]\[b\_i] > 0$).
+$$g \le 1 - a, \qquad g \le b, \qquad g \ge b - a$$
 
-\- $\\alpha\_i = 1$ si $a\_i \\neq 0$, $0$ en caso contrario.
+y luego $\mathrm{out}_x = \mathrm{in}_x \oplus g$.
 
+Es compacto, pero sólo modela **una** trayectoria: la imagen determinista de $\chi$ sobre
+la diferencia. Mide difusión y **sobreestima** el número de cajas activas en varias
+rondas, por lo que no constituye una cota diferencial rigurosa.
 
+Advertencia: si se omite la negación —usando $g = a \cdot b$— la aplicación deja de ser
+biyectiva. La diferencia $(1,1,1,1,1)$ colapsa a $(0,0,0,0,0)$, permitiendo que las
+diferencias «desaparezcan», lo que produce resultados sin sentido como rondas con cero
+cajas activas.
 
-Se introducen variables continuas $\\lambda\_i \\ge 0$ con $\\sum\_i \\lambda\_i = 1$ y se impone:
+### 5.2 Modelo basado en DDT (adoptado)
 
+Se exige que el par (diferencia de entrada, diferencia de salida) de cada caja-S sea una
+transición válida, dejando al atacante la elección entre todas las posibles. Codificando
 
+$$v^{\mathrm{in}} = \sum_{i=0}^{4} D^{\rho\pi}_{i,y,k} 2^{i}, \qquad
+v^{\mathrm{out}} = \sum_{i=0}^{4} D_{r+1,i,y,k} 2^{i}$$
 
-$$
+y siendo $\mathcal{P} = \{(a,b) : \mathrm{DDT}[a][b] > 0\}$ el conjunto de transiciones
+válidas ($|\mathcal{P}| = 317$), con $M = 31$:
 
-\\begin{aligned}
+$$v^{\mathrm{in}} - a_j \le (1-s_j)M, \qquad a_j - v^{\mathrm{in}} \le (1-s_j)M$$
 
-v^{\\mathrm{in}} \&= \\sum\_i \\lambda\_i a\_i, \\\\
+$$v^{\mathrm{out}} - b_j \le (1-s_j)M, \qquad b_j - v^{\mathrm{out}} \le (1-s_j)M$$
 
-v^{\\mathrm{out}} \&= \\sum\_i \\lambda\_i b\_i, \\\\
+$$\sum_{j} s_j = 1$$
 
-A\_{r,y,k} \&= \\sum\_i \\lambda\_i \\alpha\_i.
+Es decir, exactamente una transición se selecciona, y las restricciones *big-M* fuerzan que
+los valores coincidan con ella. Este es el modelo diferencial riguroso: sus mínimos son los
+mínimos diferenciales reales.
 
-\\end{aligned}
+### 5.3 Actividad
 
-$$
+$$v^{\mathrm{in}} \le M \cdot A_{r,y,k}, \qquad A_{r,y,k} \le v^{\mathrm{in}}$$
 
+La primera fuerza $A = 1$ cuando $v^{\mathrm{in}} > 0$; la segunda fuerza $A = 0$ cuando
+$v^{\mathrm{in}} = 0$. Por tanto $A_{r,y,k} = 1 \iff v^{\mathrm{in}} \neq 0$.
 
+## 6. Objetivo y no trivialidad
 
-Además, $v^{\\mathrm{in}} = \\sum\_{i=0}^{4} D\_{r,i,y,k} 2^i$ y $v^{\\mathrm{out}} = \\sum\_{i=0}^{4} D\_{r+1,i,y,k} 2^i$.
+$$\min \sum_{r=0}^{R-1} \sum_{y=0}^{4} \sum_{k=0}^{z-1} A_{r,y,k}$$
 
+sujeto a
 
+$$\sum_{x,y,k} D_{0,x,y,k} \ \ge\ 1$$
 
-Esta reformulación es \*\*exacta\*\* porque el poliedro generado por los puntos $P$ es integral (todos sus vértices son enteros).
+Esta última excluye la solución trivial exigiendo al menos un bit de diferencia en la
+entrada, **sin fijar cuál**. Fijar un bit concreto restringiría la búsqueda a las
+trayectorias que activan ese bit y podría dar un mínimo estrictamente mayor que el global.
 
+## 7. Búsqueda dirigida de trayectorias
 
+Para $R \ge 2$ el MILP no cierra el gap, y sus heurísticas genéricas producen incumbentes
+pobres o ninguno. Se complementa con una búsqueda dirigida que construye trayectorias
+diferenciales válidas y devuelve la de menor número de cajas activas (una cota superior
+del mínimo).
 
-\### Objetivo
+Procedimiento:
 
+1. **Arranques.** Diferencias post-lineales dispersas: un solo bit activo, y pares de bits
+   en la misma fila de $\chi$ —estos últimos reproducen las trayectorias de bajo peso
+   características de Keccak.
+2. **Propagación.** En cada caja-S activa se elige la diferencia de salida válida de menor
+   peso de Hamming según la DDT, y se aplica $\lambda$ para la ronda siguiente.
+3. **Mejora local.** Se voltea un bit a la vez de la diferencia inicial mientras el número
+   de cajas activas disminuya.
 
+La búsqueda opera en el espacio **post-lineal** deliberadamente: las trayectorias de bajo
+peso son dispersas después de $\lambda$, no en la entrada, ya que $\lambda^{-1}$ es
+difusiva. Buscar diferencias de entrada dispersas —el error inicial de este trabajo—
+converge a valores mucho peores.
 
-Minimizar el número total de cajas‑S activas:
+## 8. Nota sobre la relajación lineal
 
-$$
+Para $R \ge 2$ la cota dual del solver permanece en 0 durante toda la ejecución, con gap
+del 100 %. La causa: las restricciones de paridad sobre $\mathbb{F}_2$ se relajan muy mal.
+Al permitir valores fraccionarios, el problema continuo se satisface con objetivo cercano a
+cero mediante asignaciones que no corresponden a ninguna diferencia real 0/1. El
+*branch-and-bound* tendría que enumerar un árbol inabordable para elevar esa cota.
 
-\\min \\sum\_{r=0}^{R-1}\\sum\_{y=0}^{4}\\sum\_{k=0}^{z-1} A\_{r,y,k}.
+Es una limitación conocida del MILP a nivel de bit frente a primitivas con difusión XOR
+intensa, no una propiedad de la primitiva analizada. Certificar el óptimo para $R \ge 2$
+exige formulaciones SAT/SMT —los solvers SAT tratan el XOR de forma nativa— o herramientas
+que exploten la estructura del *column-parity kernel* de Keccak.
 
-$$
+---
 
+## 9. El modelo CP-SAT
 
+La misma formulación se implementó en CP-SAT (OR-Tools), que dispone de restricciones
+nativas para las dos estructuras que el MILP codifica con dificultad.
 
-\### No trivialidad
+### 9.1 XOR nativo
 
+CP-SAT admite `AddBoolXOr(literales)`, que impone que la paridad de los literales sea
+impar. Para expresar $c = \bigoplus_i x_i$ basta negar un literal:
 
+```python
+m.AddBoolXOr([c.Not()] + [x_i for i in ...])
+```
 
-$$
+No se requieren variables auxiliares $t$, y el solver razona sobre la estructura XOR
+mediante propagación y aprendizaje de cláusulas.
 
-\\sum\_{x,y,k} D\_{0,x,y,k} \\ge 1
+### 9.2 $\chi$ como restricción de tabla
 
-$$
+En lugar del encoding *big-M* con 317 variables de selección por caja-S, se declara
+directamente el conjunto de tuplas admisibles:
 
+```python
+m.AddAllowedAssignments(bits_entrada + bits_salida, TUPLAS)
+```
 
+donde `TUPLAS` contiene las 317 transiciones válidas de la DDT como vectores de 10 bits.
+Esto elimina cerca del 90 % de las variables del modelo MILP.
 
-(se exige al menos una diferencia en la entrada).
+### 9.3 Actividad y objetivo
 
+$$A_{r,y,k} = \max(\Delta^{\mathrm{in}}_0, \dots, \Delta^{\mathrm{in}}_4)$$
 
+impuesto con `AddMaxEquality`, que sobre booleanos equivale al OR. El objetivo es el mismo:
+minimizar $\sum A$.
 
-\### Simetría rotacional (opcional)
+### 9.4 Ruptura de simetría
 
+La ronda sin $\iota$ conmuta con la traslación a lo largo de $z$:
 
+- $\theta$ rota una posición en $z$ (conmuta con cualquier traslación en $z$);
+- $\rho$ traslada cada carril una constante (conmuta);
+- $\pi$ permuta carriles sin depender de $z$;
+- $\chi$ actúa dentro de cada *slice*.
 
-Para acelerar la búsqueda, se fija el bit $D\_{0,0,0,0} = 1$ (válido por invarianza rotacional de Keccak).
+Precisamente por eso existe $\iota$: para romper esa invariancia en la permutación
+completa. Como aquí se omite, toda trayectoria pertenece a una órbita de tamaño divisor de
+$z$, y puede exigirse sin pérdida de generalidad que el *slice* $z=0$ de la diferencia de
+entrada sea no nulo:
 
+$$\sum_{x,y} D_{0,x,y,0} \ \ge\ 1$$
 
+Esta restricción implica también la no trivialidad. Conviene advertir que una formulación
+del tipo «el primer bit no nulo está en $k=0$» requiere un esquema *lex-leader* correcto;
+hecha a la ligera puede eliminar el óptimo. El ahorro está acotado por $z$ (4 u 8 veces),
+de modo que es útil pero modesto.
 
-\## Estrategia de decisión
+### 9.5 Una nota sobre el encoding de $\chi$ en MILP
 
+Si se deseara mantener el MILP, existe una vía para reducir drásticamente su tamaño: para
+cada diferencia de entrada $a \neq 0$, el conjunto de diferencias de salida válidas de
+$\chi$ es un **subespacio afín** de $\mathbb{F}_2^5$, de dimensión 2, 3 o 4 (verificado
+exhaustivamente en `test_ddt_filas_planas` y comprobable con `ddt_transiciones`). Esa
+estructura permite sustituir las 317 variables de selección por un puñado de ecuaciones
+lineales. No se implementó porque CP-SAT ya resuelve el problema, pero es la mejora natural
+para quien quiera insistir con MILP.
 
+---
 
-En lugar de minimizar directamente, se usa una \*\*estrategia de decisión\*\*:
+## 10. Envolvente convexa de la DDT (alternativa al *big-M*)
 
-1\. Se obtiene una cota superior $K$ mediante la búsqueda heurística (`cota\_superior`).
+El encoding *big-M* de $\chi$ consume cerca del 90 % de las variables del modelo MILP
+y relaja mal. Una alternativa natural es describir el conjunto de transiciones válidas
+como la **envolvente convexa** de sus 317 puntos en $\{0,1\}^{10}$ (cinco bits de
+diferencia de entrada y cinco de salida), mediante multiplicadores $\lambda_j \ge 0$ con
+$\sum_j \lambda_j = 1$.
 
-2\. Se añade la restricción $\\sum A \\le K - 1$.
+### 10.1 La formulación debe ser por componentes
 
-3\. Si el problema es \*\*infactible\*\*, entonces $K$ es el óptimo.
+La envolvente ha de imponerse **bit a bit**, con una ecuación por cada una de las diez
+coordenadas:
 
-4\. Si es \*\*factible\*\*, se encontró una trayectoria mejor, se actualiza $K$ y se repite.
+$$\sum_j \lambda_j\, a_j[i] = \Delta^{\mathrm{in}}_i, \qquad
+\sum_j \lambda_j\, b_j[i] = \Delta^{\mathrm{out}}_i, \qquad i = 0,\dots,4$$
 
+Así es **exacta**: para un conjunto $S$ de puntos $0/1$ se cumple
+$\mathrm{conv}(S) \cap \{0,1\}^n = S$, porque todo punto $0/1$ de la envolvente es
+vértice del cubo unidad y, por tanto, pertenece a $S$.
 
+### 10.2 El error de colapsar en escalares
 
-Esto permite certificar optimalidad en tiempos mucho menores que la minimización directa.
+Es tentador comprimir esas diez ecuaciones en dos, usando la codificación entera con
+potencias de dos:
 
+$$\sum_j \lambda_j\, a_j = \sum_i \Delta^{\mathrm{in}}_i 2^{i}
+\qquad \text{(INCORRECTO)}$$
 
+Esta formulación **invalida el modelo**. Una combinación convexa de los enteros $a_j$
+alcanza valores que no corresponden a ninguna transición válida, de modo que la
+restricción de la DDT queda esencialmente vacía. Ejemplo verificable: la transición
+$(a, b) = (3, 1)$ no pertenece a la DDT, y sin embargo existe una combinación convexa
+de pares válidos cuyos valores enteros son exactamente 3 y 1, así que el modelo la
+admite (véase `test_hull_escalar_admite_transiciones_invalidas`).
 
-\## Solver
+Las consecuencias observadas al implementar por error esta versión fueron drásticas: el
+modelo devolvía exactamente $R$ cajas activas para cualquier $R$ —es decir, el mínimo
+estructural—, todas las transiciones de sus trayectorias violaban la DDT, e incluso
+aparecían diferencias no nulas con salida nula, imposibles por ser $\chi$ biyectiva. La
+función `trayectoria_es_valida()` de `src/milp_keccak.py` permite auditar cualquier
+trayectoria contra la DDT y detectar este tipo de fallo.
 
+### 10.3 Resultado: válida pero no competitiva
 
+Implementada correctamente (`construir_milp_hull()`), la envolvente convexa es válida y
+mejora sobre el *big-M*: para $R{=}2$, $z{=}4$ devuelve una cota de 7 frente a 9. Pero
+**no certifica** en 200 s, mientras CP-SAT prueba el óptimo (4) en segundos. Se conserva
+en el repositorio por completitud metodológica, no como método recomendado.
 
-Se utiliza \*\*HiGHS\*\* a través de `highspy` (o `pulp` con HiGHS). Parámetros recomendados:
+---
 
-\- `mip\_rel\_gap = 0.0`
+## 11. Monotonía del mínimo y consolidación de cotas
 
-\- `presolve = on`
+El mínimo $m(R)$ es **no decreciente** en $R$. Justificación: dada una trayectoria de
+$R+1$ rondas, truncarla a sus primeras $R$ rondas produce una trayectoria válida de $R$
+rondas cuyo número de cajas activas es menor o igual. Por tanto una trayectoria óptima
+de $R+1$ rondas no puede tener menos cajas activas que el óptimo de $R$ rondas:
 
-\- `parallel = on`
+$$m(R+1) \ \ge\ m(R)$$
 
-\- `mip\_detect\_symmetry = on`
+De ello se sigue que toda cota inferior demostrada para pocas rondas se propaga a todas
+las mayores:
 
+$$m(R) \ \ge\ \max\{\, LB(r) \;:\; r \le R \,\}$$
 
+Esto tiene valor práctico. Certificar $m(3) = 9$ para $z = 4$ —un caso abordable—
+garantiza $m(R) \ge 9$ para todo $R \ge 3$, y con ello una complejidad de datos de al
+menos $2^{18}$ pares en cualquier número de rondas superior, sin necesidad de resolver
+esos casos. Las cotas obtenidas en $R{=}7$ y $R{=}8$ (11 y 13) elevan a su vez la
+garantía para todas las rondas siguientes.
 
-\## Validación
-
-
-
-El modelo se ha probado para `z ∈ {4,8}` y `R = 1..10`, certificando el óptimo $n = R$ en todos los casos con tiempos inferiores a 11 segundos.
-
+La consolidación está implementada en `consolidar()` (en `src/cpsat_keccak.py`) y
+verificada en `test_consolidacion_monotona_de_cotas`. Es la razón por la que la columna
+de «pares garantizados» de `docs/RESULTADOS.md` no decrece nunca al aumentar $R$.
