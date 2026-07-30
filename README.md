@@ -32,13 +32,13 @@ variante es efectivamente más segura y en qué magnitud.
 | 1 | **1** (exacto) | 1 | certificado | $2^{2}$ |
 | 2 | **4** (exacto) | 2,2 | certificado | $2^{8}$ |
 | 3 | **9** (exacto) | 2,4,3 | certificado | $2^{18}$ |
-| 4 | $[9, 14]$ | — | cota | $2^{18}$ |
-| 5 | $[9, 35]$ | — | cota | $2^{18}$ |
-| 6 | $[9, 61]$ | — | cota | $2^{18}$ |
-| 7 | $[11, 64]$ | — | cota | $2^{22}$ |
-| 8 | $[13, 86]$ | — | cota | $2^{26}$ |
-| 9 | $[13, 103]$ | — | cota | $2^{26}$ |
-| 10 | $[13, 111]$ | — | cota | $2^{26}$ |
+| 4 | **14** (exacto) | 2,4,4,4 | certificado | $2^{28}$ |
+| 5 | $[14, 32]$ | - | cota | $2^{28}$ |
+| 6 | $[14, 37]$ | - | cota | $2^{28}$ |
+| 7 | $[14, 52]$ | - | cota | $2^{28}$ |
+| 8 | $[14, 63]$ | - | cota | $2^{28}$ |
+| 9 | $[14, 82]$ | - | cota | $2^{28}$ |
+| 10 | $[14, 94]$ | - | cota | $2^{28}$ |
 
 ### $z = 8$ (Keccak-f[200], 40 cajas-S por ronda)
 
@@ -47,11 +47,18 @@ variante es efectivamente más segura y en qué magnitud.
 | 1 | **1** (exacto) | 1 | certificado | $2^{2}$ |
 | 2 | **4** (exacto) | 2,2 | certificado | $2^{8}$ |
 | 3 | **10** (exacto) | 2,4,4 | certificado | $2^{20}$ |
-| 4–10 | $\ge 10$ | — | cota | $2^{20}$ |
+| 4 | $[10, 39]$ | - | cota | $2^{20}$ |
+| 5 | $[10, 53]$ | - | cota | $2^{20}$ |
+| 6 | $[10, 106]$ | - | cota | $2^{20}$ |
+| 7 | $[10, 139]$ | - | cota | $2^{20}$ |
+| 8 | $[10, 155]$ | - | cota | $2^{20}$ |
+| 9 | $[10, 195]$ | - | cota | $2^{20}$ |
+| 10 | $[10, 195]$ | - | cota | $2^{20}$ |
 
-Los casos $R \le 3$ tienen **óptimo exacto certificado**. Para $R \ge 4$ se reportan
-intervalos: el extremo inferior está demostrado, el superior es la mejor trayectoria
-hallada con un presupuesto de unos 35 s por caso, y mejora con más tiempo.
+Con $z = 4$ hay **cuatro casos con óptimo exacto certificado** ($R \le 4$); con $z = 8$,
+tres ($R \le 3$). Para el resto se reportan intervalos: el extremo inferior está
+demostrado y el superior es la mejor trayectoria hallada, que mejora con más tiempo de
+cómputo.
 
 Tres puntos de lectura, detallados en [`docs/RESULTADOS.md`](docs/RESULTADOS.md):
 
@@ -59,13 +66,15 @@ Tres puntos de lectura, detallados en [`docs/RESULTADOS.md`](docs/RESULTADOS.md)
 mínimo real fuera menor que el hallado, existiría un ataque mejor; sólo la cota inferior
 sustenta una garantía.
 
-**Las cotas inferiores se propagan por monotonía.** Como $m(R)$ es no decreciente en $R$,
-el óptimo certificado $m(3) = 9$ garantiza $m(R) \ge 9$ para todo $R \ge 3$ sin resolver
-esos casos.
+**Las cotas se propagan por monotonía**, y en ambos sentidos. Como $m(R)$ es no
+decreciente en $R$, el óptimo certificado $m(4) = 14$ garantiza $m(R) \ge 14$ para todo
+$R \ge 4$ sin resolver esos casos; simétricamente, una trayectoria hallada para $R$ rondas
+acota también las de menos rondas. Certificar un solo caso más elevó la garantía de
+$2^{18}$ a $2^{28}$ pares en las siete rondas siguientes.
 
-**Las cotas superiores de $R \ge 4$ son flojas** y no deben leerse como estimaciones del
-óptimo. En $R = 3$ este proyecto llegó a manejar una cota de 18 cuando el óptimo real
-era 9.
+**Las cotas superiores de los casos no certificados son flojas** y no deben leerse como
+estimaciones del óptimo. En $R = 3$ este proyecto llegó a manejar una cota de 18 cuando el
+óptimo real era 9.
 
 ### MILP frente a CP-SAT
 
@@ -221,8 +230,8 @@ Detalle completo en [`docs/MODELO.md`](docs/MODELO.md).
 
 ## Limitaciones
 
-1. **Sólo $R \le 3$ está certificado.** Para $R \ge 4$ se dispone de cotas; el mínimo
-   real está en el intervalo indicado.
+1. **La certificación llega hasta $R = 4$ con $z = 4$** y hasta $R = 3$ con $z = 8$. Más
+   allá se dispone de cotas; el mínimo real está en el intervalo indicado.
 2. **Las versiones reducidas difunden peor que el estándar.** Al reducir los
    desplazamientos de $\rho$ módulo $z$, con $z=4$ los 25 offsets colapsan a 4 valores y
    7 carriles quedan sin rotar (con $z=8$: 8 valores, 3 sin rotar). Debe tenerse en

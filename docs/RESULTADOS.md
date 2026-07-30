@@ -18,13 +18,13 @@
 | 1 | **1** (exacto) | 1 | certificado | $2^{2}$ |
 | 2 | **4** (exacto) | 2,2 | certificado | $2^{8}$ |
 | 3 | **9** (exacto) | 2,4,3 | certificado | $2^{18}$ |
-| 4 | $[9, 14]$ | - | cota | $2^{18}$ |
-| 5 | $[9, 35]$ | - | cota | $2^{18}$ |
-| 6 | $[9, 61]$ | - | cota | $2^{18}$ |
-| 7 | $[11, 64]$ | - | cota | $2^{22}$ |
-| 8 | $[13, 86]$ | - | cota | $2^{26}$ |
-| 9 | $[13, 103]$ | - | cota | $2^{26}$ |
-| 10 | $[13, 111]$ | - | cota | $2^{26}$ |
+| 4 | **14** (exacto) | 2,4,4,4 | certificado | $2^{28}$ |
+| 5 | $[14, 32]$ | - | cota | $2^{28}$ |
+| 6 | $[14, 37]$ | - | cota | $2^{28}$ |
+| 7 | $[14, 52]$ | - | cota | $2^{28}$ |
+| 8 | $[14, 63]$ | - | cota | $2^{28}$ |
+| 9 | $[14, 82]$ | - | cota | $2^{28}$ |
+| 10 | $[14, 94]$ | - | cota | $2^{28}$ |
 
 ### $z = 8$ (Keccak-f[200], 40 cajas-S por ronda)
 
@@ -33,18 +33,19 @@
 | 1 | **1** (exacto) | 1 | certificado | $2^{2}$ |
 | 2 | **4** (exacto) | 2,2 | certificado | $2^{8}$ |
 | 3 | **10** (exacto) | 2,4,4 | certificado | $2^{20}$ |
-| 4 | $[10, 60]$ | - | cota | $2^{20}$ |
-| 5 | $[10, 62]$ | - | cota | $2^{20}$ |
+| 4 | $[10, 39]$ | - | cota | $2^{20}$ |
+| 5 | $[10, 53]$ | - | cota | $2^{20}$ |
 | 6 | $[10, 106]$ | - | cota | $2^{20}$ |
-| 7 | $[10, 156]$ | - | cota | $2^{20}$ |
-| 8 | $[10, 238]$ | - | cota | $2^{20}$ |
-| 9 | $[10, 239]$ | - | cota | $2^{20}$ |
-| 10 | $[10, 282]$ | - | cota | $2^{20}$ |
+| 7 | $[10, 139]$ | - | cota | $2^{20}$ |
+| 8 | $[10, 155]$ | - | cota | $2^{20}$ |
+| 9 | $[10, 195]$ | - | cota | $2^{20}$ |
+| 10 | $[10, 195]$ | - | cota | $2^{20}$ |
 
 ## Cómo leer estas tablas
 
-**Los seis casos con $R \le 3$ tienen óptimo exacto certificado** (CP-SAT devuelve
-`OPTIMAL`, gap cerrado). Para $R \ge 4$ se reportan intervalos
+**Siete casos tienen óptimo exacto certificado** (CP-SAT devuelve `OPTIMAL`, gap
+cerrado): $R \le 4$ con $z = 4$ y $R \le 3$ con $z = 8$. El caso $R{=}4$, $z{=}4$ requirió
+26 minutos con 32 hilos. Para el resto se reportan intervalos
 [cota inferior, cota superior]: el extremo inferior está demostrado y el superior
 corresponde a la mejor trayectoria hallada dentro del presupuesto.
 
@@ -60,9 +61,10 @@ consecuencia
 
 $$m(R) \ge \max\{ LB(r) : r \le R \}$$
 
-Por eso el óptimo certificado $m(3) = 9$ ($z{=}4$) garantiza $m(R) \ge 9$ para todo
-$R \ge 3$, y las cotas obtenidas en $R{=}7$ y $R{=}8$ (11 y 13) elevan la garantía
-para todas las rondas superiores. La consolidación está implementada en
+Por eso el óptimo certificado $m(4) = 14$ ($z{=}4$) garantiza $m(R) \ge 14$ para todo
+$R \ge 4$: certificar un único caso más elevó la garantía de $2^{18}$ a $2^{28}$ pares en
+las siete rondas siguientes. La consolidación es simétrica: las cotas superiores se
+propagan hacia $R$ menores, ya que $m(r) \le m(R) \le UB(R)$ para $r \le R$. La consolidación está implementada en
 `consolidar()` y verificada en `test_consolidacion_monotona_de_cotas`.
 
 **Las cotas superiores de $R \ge 4$ son flojas** (hasta 282 para $R{=}10$, $z{=}8$).

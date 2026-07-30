@@ -173,14 +173,29 @@ def consolidar(resultados):
 
     for z, lista in por_z.items():
         lista.sort(key=lambda d: d["R"])
+
+        # Cotas INFERIORES: se propagan hacia R mayores, porque m(R) >= m(r) si r <= R.
         mejor, origen = 0, None
         for d in lista:
             if d["cota_inferior"] > mejor:
                 mejor, origen = d["cota_inferior"], d["R"]
             d["cota_inferior_consolidada"] = mejor
             d["origen_cota"] = origen
+
+        # Cotas SUPERIORES: se propagan hacia R menores, porque m(r) <= m(R) <= UB(R)
+        # para r <= R. Una trayectoria hallada en muchas rondas acota también las
+        # de menos rondas.
+        mejor_ub, origen_ub = None, None
+        for d in reversed(lista):
             ub = d["cota_superior"]
-            d["exacto"] = bool(ub is not None and ub == mejor)
+            if ub is not None and (mejor_ub is None or ub < mejor_ub):
+                mejor_ub, origen_ub = ub, d["R"]
+            d["cota_superior_consolidada"] = mejor_ub
+            d["origen_cota_superior"] = origen_ub
+
+        for d in lista:
+            ub = d["cota_superior_consolidada"]
+            d["exacto"] = bool(ub is not None and ub == d["cota_inferior_consolidada"])
     return resultados
 
 
@@ -219,7 +234,7 @@ def tabla(resultados):
     print(cab); print("-" * len(cab))
     for d in sorted(resultados, key=lambda a: (a["z"], a["R"])):
         mg = magnitudes(d)
-        lb, ub = d["cota_inferior_consolidada"], d["cota_superior"]
+        lb, ub = d["cota_inferior_consolidada"], d["cota_superior_consolidada"]
         if d["exacto"]:
             minimo = "%d (exacto)" % ub
         elif ub is None:
