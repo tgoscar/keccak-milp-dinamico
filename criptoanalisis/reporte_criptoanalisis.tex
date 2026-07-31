@@ -1,0 +1,446 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{booktabs}
+\usepackage{url}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=black,citecolor=black,urlcolor=blue}
+
+\renewcommand{\abstractname}{Resumen}
+\renewcommand{\IEEEkeywordsname}{Palabras clave}
+\renewcommand{\tablename}{TABLA}
+\renewcommand{\refname}{Referencias}
+
+\newcommand{\Fdos}{\mathbb{F}_2}
+\newcommand{\xor}{\oplus}
+
+\begin{document}
+
+\title{Criptoanálisis lineal y diferencial de una variante ligera de Keccak:\\
+criterios de diseño verificados y refutación de la premisa de difusión}
+
+\author{\IEEEauthorblockN{Oscar Toledo}
+\IEEEauthorblockA{Maestría en Ciencias de la Computación\\
+Universidad Nacional de Ingeniería (UNI)\\
+Lima, Perú}}
+
+\maketitle
+
+\begin{abstract}
+Se aborda el rediseño de Keccak para hardware limitado siguiendo los cinco
+requerimientos planteados, con una metodología basada en medición y verificación
+formal antes que en afirmaciones de diseño. Los resultados contradicen la premisa
+de partida: se demuestra que Keccak-f[200] alcanza el 80\,\% de difusión en dos
+rondas y Keccak-f[800] en tres, de modo que el número elevado de rondas del
+estándar no responde a necesidades de difusión sino a margen de seguridad. Se
+evalúan seis capas lineales alternativas construidas solo con XOR y rotaciones;
+ninguna supera la cota diferencial de $\theta$, y se identifica la razón
+estructural: $\theta$ obtiene dependencia de once términos por bit con dos XOR
+por bit amortizados, gracias a que reutiliza cinco veces cada paridad de columna.
+Del proceso se derivan cuatro criterios de diseño verificados algebraicamente, y
+se documenta una vulnerabilidad catastrófica de la capa no lineal parcial
+propuesta para abaratar el circuito: admite un subespacio invariante de $2^{8}$
+diferencias que atraviesan cualquier número de rondas con probabilidad uno. Todas
+las cotas diferenciales se certifican con CP-SAT.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Keccak, SHA-3, criptoanálisis lineal, criptoanálisis diferencial, LAT, DDT,
+CP-SAT, hardware ligero.
+\end{IEEEkeywords}
+
+\section{Criptoanálisis lineal preliminar}
+
+\subsection{Aproximación afín de una función no lineal}
+
+El criptoanálisis lineal aproxima una función no lineal mediante funciones afines
+y explota el sesgo resultante. Para $x \lor y$ sobre dos variables, las cuatro
+aproximaciones consideradas coinciden con la función en tres de los cuatro puntos
+(Tabla~\ref{tab:or}), cada una fallando en uno distinto: la constante $1$ falla en
+$(0,0)$, $x$ en $(0,1)$, $y$ en $(1,0)$ y $x \xor y$ en $(1,1)$.
+
+\begin{table}[!ht]
+\caption{Aproximaciones afines de $x \lor y$}
+\label{tab:or}
+\centering
+\begin{tabular}{@{}ccccccc@{}}
+\toprule
+$x$ & $y$ & $x \lor y$ & $1$ & $x$ & $y$ & $x \xor y$ \\
+\midrule
+0 & 0 & 0 & 1 & 0 & 0 & 0 \\
+0 & 1 & 1 & 1 & 0 & 1 & 1 \\
+1 & 0 & 1 & 1 & 1 & 0 & 1 \\
+1 & 1 & 1 & 1 & 1 & 1 & 0 \\
+\midrule
+\multicolumn{3}{c}{Probabilidad} & $3/4$ & $3/4$ & $3/4$ & $3/4$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+El valor $3/4$ es óptimo. Sobre dos variables existen ocho funciones afines; las
+cuatro restantes ($0$, $x\xor1$, $y\xor1$, $x\xor y\xor1$) aciertan $1/4$ o $2/4$.
+Se dice entonces que $x \lor y$ tiene \emph{no linealidad} $1$: dista una única
+posición de la función afín más próxima. El sesgo es
+$\varepsilon = |3/4 - 1/2| = 1/4$, y es la magnitud que hace explotable la
+aproximación.
+
+\subsection{Aproximación sobre la caja-S de cuatro bits}
+
+Para la caja-S dada por $S(x) = \mathtt{c2\,6f\,90\,4d\,3e\,b8\,a7\,15}$ se evalúa
+la aproximación $y_3 = x_2 \xor x_3$, con $x_1$ como bit más significativo. El
+recuento exhaustivo sobre los dieciséis valores de entrada arroja
+\begin{equation}
+\Pr[y_3 = x_2 \xor x_3] = \frac{10}{16} = 0{,}625,
+\qquad \varepsilon = \frac{1}{8}.
+\end{equation}
+Por la regla de Matsui, un ataque lineal que explote esta aproximación requiere del
+orden de $\varepsilon^{-2} = 64$ textos claros conocidos.
+
+\subsection{Tabla de aproximaciones lineales}
+
+La LAT resume todas las aproximaciones posibles. Cada casilla es
+\begin{equation}
+\mathrm{LAT}[\alpha][\beta] =
+\#\{x : \alpha \cdot x = \beta \cdot S(x)\} - 8,
+\end{equation}
+donde $\alpha \cdot x$ denota el XOR de los bits de $x$ seleccionados por la
+máscara $\alpha$. De ahí se obtiene $p = (8 + \mathrm{LAT})/16$ y el sesgo
+$|\mathrm{LAT}|/16$. La Tabla~\ref{tab:lat} recoge seis casillas representativas.
+
+\begin{table}[!ht]
+\caption{Seis valores representativos de la LAT}
+\label{tab:lat}
+\centering
+\begin{tabular}{@{}cccccl@{}}
+\toprule
+$\alpha$ & $\beta$ & LAT & $p$ & sesgo & Lectura \\
+\midrule
+0 & 0 & $+8$ & $1$      & $1/2$ & referencia \\
+0 & 1 & $0$  & $1/2$    & $0$   & fila nula: $S$ balanceada \\
+1 & 0 & $0$  & $1/2$    & $0$   & columna nula: $S$ biyectiva \\
+6 & 2 & $+2$ & $10/16$  & $1/8$ & la aproximación anterior \\
+7 & 3 & $+6$ & $14/16$  & $3/8$ & sesgo máximo positivo \\
+1 & 5 & $-6$ & $2/16$   & $3/8$ & sesgo máximo negativo \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+La casilla $(6,2)$ vale $+2$, que es exactamente $10-8$: la aproximación estudiada
+en el apartado anterior es una de las $256$ casillas de la tabla. Conviene señalar
+que esta caja-S es débil: su $|\mathrm{LAT}|$ máximo es $6$ y su DDT máximo es $8$,
+mientras que una caja-S de cuatro bits óptima alcanza $4$ en ambas métricas. Un
+DDT de $8$ sobre $16$ implica la existencia de una transición diferencial de
+probabilidad $1/2$.
+
+\section{Modificación estructural e inyección dinámica}
+
+\subsection{Estructura propuesta}
+
+La variante sustituye el estado tridimensional $5\times5\times w$ por una
+disposición en rodajas de cinco carriles de $w$ bits, con $5w$ bits en total. Cada
+ronda aplica una capa lineal $\Lambda$ dentro de cada carril y la capa no lineal
+$\chi$ sobre columnas de cinco bits, una por índice $z$. La difusión entre
+carriles proviene exclusivamente de $\chi$ y la difusión a lo largo del carril
+exclusivamente de las rotaciones.
+
+\subsection{Las dos variables dinámicas}
+
+Se inyectan dos parámetros en tiempo de ejecución:
+\begin{itemize}
+\item $s$, \textbf{nivel de seguridad}, que determina el número de rondas $R(s)$ y
+la capacidad $c(s)$ de la esponja;
+\item $d$, \textbf{dominio de aplicación}, que se inyecta como constante de
+separación de dominio en el relleno.
+\end{itemize}
+
+La interacción se diseña para no introducir debilidades. La separación de dominio
+mediante constantes es el mecanismo estándar de SHA-3, que distingue así SHA-3 de
+SHAKE mediante sufijos distintos; al ser una constante pública que solo desplaza
+el punto de partida, no altera las propiedades diferenciales ni lineales.
+
+El punto delicado es $s$. Si el número de rondas dependiera de un valor
+correlacionado con un secreto, el tiempo de cómputo revelaría información sobre
+ese secreto: un canal lateral temporal directo. El requisito de diseño es por
+tanto que $s$ sea un parámetro \emph{público}, fijado por la aplicación al inicio
+de la sesión y constante durante ella. Esta condición no es una formalidad: en un
+trabajo previo se analizó una variante cuyo número de rondas dependía de un
+contador de intentos fallidos, y esa construcción sí filtra el estado de
+autenticación a través del tiempo de ejecución.
+
+\section{Rediseño de la capa lineal}
+
+\subsection{Refutación de la premisa}
+
+El planteamiento del caso afirma que Keccak-p requiere demasiadas rondas para
+asegurar difusión completa. La afirmación es contrastable y resulta falsa.
+
+Se mide la difusión mediante la matriz de dependencia sobre $\Fdos$: se define
+$D_r[i][j] = 1$ si el bit de salida $i$ depende del bit de entrada $j$ tras $r$
+rondas, se compone ronda a ronda mediante el producto booleano, y se toma como
+difusión la densidad de la matriz. Cada paso aporta sus dependencias exactas:
+$\theta$ once entradas por bit, $\rho$ y $\pi$ una (son permutaciones) y $\chi$
+tres.
+
+\begin{table}[t]
+\caption{Rondas hasta alcanzar el 80\,\% de difusión}
+\label{tab:dif}
+\centering
+\begin{tabular}{@{}lcc@{}}
+\toprule
+Construcción & Estado & Rondas \\
+\midrule
+Keccak-f[200]         & 200 bits & \textbf{2} \\
+Keccak-f[400]         & 400 bits & \textbf{2} \\
+Keccak-f[800]         & 800 bits & \textbf{3} \\
+Variante, $\Sigma$ por carril    & 200 bits & 3 \\
+Variante, paridad $+$ $\Sigma$   & 200 bits & 3 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+La Tabla~\ref{tab:dif} muestra que Keccak alcanza difusión prácticamente completa
+en dos o tres rondas. Las veinticuatro rondas del estándar no responden a
+necesidades de difusión, sino a margen de seguridad frente a criptoanálisis
+diferencial y algebraico. En consecuencia, el objetivo de lograr el 80\,\% en un
+número significativamente menor de rondas carece de recorrido: solo queda una
+ronda, y para que un bit dependiera del 80\,\% de los $200$ del estado en un único
+paso harían falta unos $160$ XOR por bit, frente a los dos por bit de $\theta$.
+
+\subsection{Por qué $\theta$ es difícil de superar}
+
+$\theta$ calcula cinco paridades de columna y las \emph{reutiliza en los
+veinticinco carriles}. Ese factor de reutilización de cinco explica que consiga
+dependencia de once términos por bit con solo dos XOR por bit amortizados. Una
+estructura de cinco carriles no puede replicarlo, porque hay menos consumidores
+por cada paridad calculada. Se trata de una limitación estructural y no de una
+insuficiencia de la búsqueda realizada.
+
+\subsection{Criterios de invertibilidad}
+
+Durante la exploración de alternativas se descartaron varios diseños por no ser
+permutaciones, requisito indispensable en una construcción de esponja. De los
+fallos se extraen dos criterios verificados algebraicamente.
+
+\textbf{Criterio 1: el número de términos por carril debe ser impar.} El mapa
+$L \mapsto L \xor \mathrm{rot}(L,a)$ es siempre singular, porque el vector
+todo-unos permanece invariante bajo rotación y se cancela consigo mismo. En
+general, con $k$ términos el estado todo-unos se transforma en el XOR de $k$
+copias de sí mismo, que es nulo cuando $k$ es par. La verificación numérica lo
+confirma: con cuatro términos por carril el modelo devuelve cero cajas-S activas,
+señal inequívoca de singularidad.
+
+\textbf{Criterio 2: la paridad debe cubrir cuatro carriles, no cinco.} Al añadir
+la paridad de los cinco carriles a los tres términos propios se obtienen cuatro
+términos, y reaparece el problema anterior con deficiencia de rango exactamente
+uno. Restringir la paridad a cuatro carriles restablece la invertibilidad.
+
+\section{Rediseño de la capa no lineal}
+
+\subsection{La propuesta y su motivación}
+
+El paso $\chi$ cuesta, por bit, una compuerta ANDN y un XOR, con profundidad dos.
+Reducir ese coste directamente es difícil, pero sí puede reducirse el
+\emph{número} de compuertas AND aplicando $\chi$ solo a un subconjunto de las
+columnas en cada ronda, alternando el subconjunto entre rondas. La motivación es
+sólida: en implementaciones enmascaradas contra canal lateral el coste está
+dominado por las compuertas AND, ya que los XOR son lineales y las máscaras los
+atraviesan sin refresco. Reducir a la mitad las AND reduce a la mitad el coste del
+enmascaramiento.
+
+\subsection{Demostración de que la propuesta falla}
+
+La propuesta es insegura, y la demostración es constructiva. Sea $\Lambda$ la capa
+lineal y $P_r$ la proyección sobre las columnas que llevan $\chi$ en la ronda $r$.
+Si una diferencia $d$ cumple
+\begin{equation}\label{eq:nucleo}
+P_r\bigl(\Lambda^{r+1} d\bigr) = 0, \qquad r = 0,\dots,R-1,
+\end{equation}
+entonces $\chi$ recibe cero en todas las columnas activas y devuelve cero, de modo
+que la ronda completa es lineal para esa diferencia y la trayectoria tiene
+probabilidad uno. El conjunto de tales $d$ es un subespacio vectorial, el núcleo
+del sistema~\eqref{eq:nucleo}, y su dimensión se calcula por eliminación gaussiana
+sobre $\Fdos$.
+
+\begin{table}[t]
+\caption{Dimensión del subespacio de diferencias que esquivan toda no linealidad}
+\label{tab:nucleo}
+\centering
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+Capa no lineal & $R{=}1$ & $R{=}2$ & $R{=}3$ & $R{=}4$ & $R{=}6$ \\
+\midrule
+$\chi$ completo           & $0$      & $0$    & $0$   & $0$   & $0$ \\
+$\chi$ parcial (1/2)      & $100$    & $8$    & $8$   & $8$   & $8$ \\
+$\chi$ parcial (1/4)      & $150$    & $101$  & $59$  & --    & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+El resultado es concluyente. La sucesión $V_1 \supseteq V_2 \supseteq \cdots$ es
+decreciente y \emph{se estabiliza} en el mayor subespacio invariante bajo
+$\Lambda$ contenido en la región inactiva. Para $\chi$ parcial a la mitad, esa
+estabilización ocurre en dimensión $8$: existen $2^{8} = 256$ diferencias no nulas
+que atraviesan \emph{cualquier} número de rondas con probabilidad uno. Añadir
+rondas no repara el defecto.
+
+El hallazgo se confirmó por tres vías independientes: el modelo CP-SAT devuelve
+cero cajas-S activas, la propagación directa de la diferencia sobre el estado lo
+reproduce, y el cálculo del núcleo lo explica y cuantifica.
+
+\subsection{Ecuaciones correctas}
+
+\textbf{Criterio 3: el núcleo debe ser trivial.} La condición de diseño es que el
+sistema~\eqref{eq:nucleo} solo admita la solución nula. Con $\chi$ aplicado a todas
+las columnas el núcleo es trivial para todo $R$ (Tabla~\ref{tab:nucleo}), y el
+modelo CP-SAT confirma cotas diferenciales no nulas. La ecuación correcta de la
+capa no lineal es, por tanto, la aplicación completa
+\begin{equation}
+\chi_i = x_i \xor \bigl(\overline{x_{i+1}} \cdot x_{i+2}\bigr),
+\qquad i = 0,\dots,4,
+\end{equation}
+sobre todas las columnas, y el ahorro de compuertas AND debe buscarse por otra vía.
+Se ensayó también añadir mezcla entre carriles a la capa lineal para reparar la
+versión parcial; el núcleo se reduce de $2^{8}$ a $2^{4}$ pero no desaparece, de
+modo que la corrección es insuficiente.
+
+\section{Demostración formal mediante MILP}
+
+\subsection{Modelo}
+
+Se modela la propagación de diferencias asignando una variable binaria a cada bit
+del estado. La capa lineal se impone mediante restricciones XOR exactas; la capa
+no lineal, exigiendo que el par (diferencia de entrada, diferencia de salida) de
+cada caja-S sea una transición válida de la DDT de $\chi$, que consta de $317$
+transiciones. El objetivo es minimizar el número de cajas-S activas.
+
+La resolución se realiza con CP-SAT, que trata de forma nativa el XOR y las tablas
+de transiciones. En trabajo previo se comprobó que la formulación MILP equivalente
+no cierra el gap para $R \ge 2$, porque cerca del 90\,\% de sus variables
+corresponden a la codificación \emph{big-M} de la DDT y las restricciones de
+paridad sobre $\Fdos$ se relajan muy débilmente.
+
+\subsection{Comparación con la línea base}
+
+\begin{table}[t]
+\caption{Mínimo de cajas-S activas (200 bits, 40 cajas por ronda)}
+\label{tab:milp}
+\centering
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Construcción & $R{=}1$ & $R{=}2$ & $R{=}3$ \\
+\midrule
+Keccak-f[200] (línea base) & $1$ & $4$ & $\mathbf{10}$ \\
+Variante, $k=3$ términos   & $1$ & $4$ & $7$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Todos los valores de la Tabla~\ref{tab:milp} están certificados: CP-SAT devuelve
+\texttt{OPTIMAL} con gap cerrado. La variante iguala a la línea base hasta dos
+rondas y queda por debajo en tres. La razón es la difusión local: con $k$ términos
+por carril, un bit activo alcanza a lo sumo $k$ columnas, de modo que la
+trayectoria mínima observada es $1 \to 3 \to 3$, mientras $\theta$, con once
+términos por bit, fuerza $1 \to 3 \to 6$.
+
+Para la variante con $k=3$ se obtiene además una cota inferior demostrada de $10$
+cajas activas en cuatro rondas. El intercambio queda así cuantificado con
+precisión: \emph{la variante alcanza la garantía que Keccak ofrece en tres rondas
+empleando cuatro}.
+
+\textbf{Criterio 4: la cota diferencial la fija el número de términos, no las
+constantes.} Se realizó una búsqueda sobre $17\,125$ conjuntos de constantes de
+rotación, filtrados por dispersión máxima de los desplazamientos relativos,
+invertibilidad y velocidad de difusión. Los mejores candidatos según ese criterio
+arrojaron cotas de $5$ cajas activas en tres rondas, \emph{peores} que las $7$ de
+partida, y el valor en dos rondas resultó ser $4$ para todos los conjuntos
+probados. La conclusión, contraria a la intuición inicial, es que la elección fina
+de constantes no gobierna la cota diferencial en esta familia.
+
+\section{Justificación de la variante}
+
+\subsection{Balance}
+
+\begin{table}[t]
+\caption{Comparación estructural a igualdad de estado}
+\label{tab:balance}
+\centering
+\begin{tabular}{@{}lcc@{}}
+\toprule
+ & Keccak-f[200] & Variante \\
+\midrule
+Carriles                        & 25   & \textbf{5} \\
+Rotaciones distintas            & 25   & \textbf{10} \\
+Permutación $\pi$               & sí   & \textbf{no} \\
+XOR por ronda                   & 400  & 400 \\
+Rondas para $\ge 10$ cajas      & \textbf{3} & 4 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+La variante no mejora a Keccak en compuertas: para igualar la garantía necesita
+una ronda adicional, lo que supone $1600$ XOR frente a $1200$. Su ventaja es
+estructural: cinco carriles en lugar de veinticinco, diez rotaciones en lugar de
+veinticinco y ausencia de la permutación $\pi$. En implementaciones compactas
+serializadas, donde el enrutado y el número de multiplexores dominan el área, esa
+simplicidad puede compensar la ronda extra; afirmarlo con rotundidad exigiría una
+síntesis sobre tecnología concreta, que queda fuera de este trabajo.
+
+\subsection{Las dos vulnerabilidades de la propuesta}
+
+\textbf{Primera: la capa no lineal parcial admite diferenciales de probabilidad
+uno.} Es la vulnerabilidad grave, demostrada en la Sección IV. El subespacio
+invariante de dimensión $8$ permite atravesar cualquier número de rondas sin
+activar una sola caja-S, lo que anula por completo la resistencia diferencial. La
+corrección consiste en aplicar $\chi$ a todas las columnas, con la verificación de
+que el núcleo del sistema~\eqref{eq:nucleo} es trivial.
+
+\textbf{Segunda: la difusión local degrada la cota diferencial.} Al confinar la
+capa lineal dentro de cada carril, la variante activa siete cajas-S en tres rondas
+frente a las diez de la línea base. Un atacante dispone entonces de trayectorias
+de probabilidad $2^{-14}$ donde en Keccak tendría $2^{-20}$. La corrección
+consiste en compensar con una ronda adicional, con el coste correspondiente, o en
+introducir mezcla entre carriles en la capa lineal, respetando los criterios 1
+y 2 de invertibilidad.
+
+\section{Conclusiones}
+
+\begin{enumerate}
+\item La premisa del caso no se sostiene. Keccak alcanza el 80\,\% de difusión en
+dos o tres rondas según el tamaño de estado; sus veinticuatro rondas responden a
+margen de seguridad, no a difusión.
+\item Ninguna de las seis capas lineales evaluadas supera la cota diferencial de
+$\theta$. La razón es estructural: $\theta$ reutiliza cinco veces cada paridad de
+columna, y una disposición de cinco carriles no puede igualar ese factor.
+\item La capa no lineal parcial, propuesta para abaratar el circuito, es
+insegura: admite $2^{8}$ diferenciales de probabilidad uno que ningún número de
+rondas elimina.
+\item Se derivan cuatro criterios de diseño verificados: número impar de términos
+por carril, paridad sobre cuatro carriles, núcleo trivial, y dependencia de la
+cota diferencial respecto del número de términos y no de las constantes.
+\item La variante iguala la garantía diferencial de Keccak empleando una ronda
+adicional, a cambio de una estructura sensiblemente más simple.
+\end{enumerate}
+
+Como trabajo futuro, quedan pendientes la certificación de la variante con cinco
+términos por carril en tres rondas ---donde se halló una trayectoria de catorce
+cajas activas sin poder demostrar su minimalidad--- y la síntesis sobre tecnología
+concreta que permitiría cuantificar la ventaja de área.
+
+\begin{thebibliography}{9}
+\bibitem{fips202} National Institute of Standards and Technology, \emph{SHA-3
+Standard: Permutation-Based Hash and Extendable-Output Functions}, FIPS PUB 202,
+2015.
+\bibitem{keccak} G. Bertoni, J. Daemen, M. Peeters y G. Van Assche, \emph{The
+Keccak Reference}, versión 3.0, 2011.
+\bibitem{matsui} M. Matsui, ``Linear cryptanalysis method for DES cipher,'' en
+\emph{EUROCRYPT}, 1993, pp. 386--397.
+\bibitem{biham} E. Biham y A. Shamir, ``Differential cryptanalysis of DES-like
+cryptosystems,'' \emph{Journal of Cryptology}, vol. 4, pp. 3--72, 1991.
+\bibitem{ascon} C. Dobraunig, M. Eichlseder, F. Mendel y M. Schläffer,
+\emph{Ascon v1.2}, sumisión al concurso NIST Lightweight Cryptography, 2021.
+\bibitem{ortools} L. Perron y F. Didier, \emph{CP-SAT}, Google OR-Tools.
+\end{thebibliography}
+
+\end{document}

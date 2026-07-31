@@ -1,0 +1,12 @@
+# Modelado de programación lineal entera mixta
+pulp>=2.7
+
+# Solver HiGHS para el modelo MILP. Si no está disponible, el código recurre a
+# CBC, que viene incluido con PuLP.
+highspy>=1.5
+
+# CP-SAT: certificación de los óptimos (src/cpsat_keccak.py)
+ortools>=9.8
+
+# Opcional, sólo para ejecutar notebooks/Keccak_MILP_analisis.ipynb:
+#   pip install jupyter
