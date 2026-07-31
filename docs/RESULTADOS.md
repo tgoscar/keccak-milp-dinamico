@@ -19,12 +19,12 @@
 | 2 | **4** (exacto) | 2,2 | certificado | $2^{8}$ |
 | 3 | **9** (exacto) | 2,4,3 | certificado | $2^{18}$ |
 | 4 | **14** (exacto) | 2,4,4,4 | certificado | $2^{28}$ |
-| 5 | $[14, 32]$ | - | cota | $2^{28}$ |
-| 6 | $[14, 37]$ | - | cota | $2^{28}$ |
-| 7 | $[14, 52]$ | - | cota | $2^{28}$ |
-| 8 | $[14, 63]$ | - | cota | $2^{28}$ |
-| 9 | $[14, 82]$ | - | cota | $2^{28}$ |
-| 10 | $[14, 94]$ | - | cota | $2^{28}$ |
+| 5 | $[18, 24]$ | 2,4,4,4,10 | cota | $2^{36}$ |
+| 6 | $[20, 36]$ | 8,8,7,5,4,4 | cota | $2^{40}$ |
+| 7 | $[20, 43]$ | 2,4,4,4,10,12,7 | cota | $2^{40}$ |
+| 8 | $[23, 49]$ | 3,3,12,17,2,4,4,4 | cota | $2^{46}$ |
+| 9 | $[30, 68]$ | 6,13,10,4,2,4,19,7,3 | cota | $2^{60}$ |
+| 10 | $[30, 75]$ | 8,10,4,2,4,17,12,6,6,6 | cota | $2^{60}$ |
 
 ### $z = 8$ (Keccak-f[200], 40 cajas-S por ronda)
 
@@ -33,19 +33,22 @@
 | 1 | **1** (exacto) | 1 | certificado | $2^{2}$ |
 | 2 | **4** (exacto) | 2,2 | certificado | $2^{8}$ |
 | 3 | **10** (exacto) | 2,4,4 | certificado | $2^{20}$ |
-| 4 | $[10, 39]$ | - | cota | $2^{20}$ |
-| 5 | $[10, 53]$ | - | cota | $2^{20}$ |
-| 6 | $[10, 106]$ | - | cota | $2^{20}$ |
-| 7 | $[10, 139]$ | - | cota | $2^{20}$ |
-| 8 | $[10, 155]$ | - | cota | $2^{20}$ |
-| 9 | $[10, 195]$ | - | cota | $2^{20}$ |
-| 10 | $[10, 195]$ | - | cota | $2^{20}$ |
+| 4 | $[15, 22]$ | 10,4,4,4 | cota | $2^{30}$ |
+| 5 | $[15, 41]$ | 15,6,4,4,12 | cota | $2^{30}$ |
+| 6 | $[17, 67]$ | 10,4,4,7,21,21 | cota | $2^{34}$ |
+| 7 | $[17, 96]$ | 22,8,2,4,18,31,11 | cota | $2^{34}$ |
+| 8 | $[21, 119]$ | 18,22,29,8,4,6,23,22 | cota | $2^{42}$ |
+| 9 | $[21, 119]$ | 19,15,2,2,11,35,27,4,4 | cota | $2^{42}$ |
+| 10 | $[23, 164]$ | 18,4,4,11,34,20,29,... | cota | $2^{46}$ |
 
 ## Cómo leer estas tablas
 
-**Siete casos tienen óptimo exacto certificado** (CP-SAT devuelve `OPTIMAL`, gap
-cerrado): $R \le 4$ con $z = 4$ y $R \le 3$ con $z = 8$. El caso $R{=}4$, $z{=}4$ requirió
-26 minutos con 32 hilos. Para el resto se reportan intervalos
+**Siete de los veinte casos tienen óptimo exacto certificado** (CP-SAT devuelve
+`OPTIMAL`, gap cerrado): $R \le 4$ con $z = 4$ y $R \le 3$ con $z = 8$. El caso $R{=}4$,
+$z{=}4$ requirió 26 minutos con 32 hilos. El conjunto completo supuso unas **14 horas de
+cómputo**: cuatro horas para cada uno de los dos casos frontera ($R{=}5$ con $z{=}4$ y
+$R{=}4$ con $z{=}8$) y media hora para el resto. Para los no certificados se reportan
+intervalos
 [cota inferior, cota superior]: el extremo inferior está demostrado y el superior
 corresponde a la mejor trayectoria hallada dentro del presupuesto.
 
@@ -62,9 +65,29 @@ consecuencia
 $$m(R) \ge \max\{ LB(r) : r \le R \}$$
 
 Por eso el óptimo certificado $m(4) = 14$ ($z{=}4$) garantiza $m(R) \ge 14$ para todo
-$R \ge 4$: certificar un único caso más elevó la garantía de $2^{18}$ a $2^{28}$ pares en
-las siete rondas siguientes. La consolidación es simétrica: las cotas superiores se
-propagan hacia $R$ menores, ya que $m(r) \le m(R) \le UB(R)$ para $r \le R$. La consolidación está implementada en
+$R \ge 4$. La consolidación es simétrica: las cotas superiores se propagan hacia $R$
+menores, ya que $m(r) \le m(R) \le UB(R)$ para $r \le R$; así, la trayectoria de 119 cajas
+hallada en $R{=}9$ con $z{=}8$ mejora la cota superior de $R{=}8$, que por sí sola era 132.
+
+Ambos mecanismos se aprecian en las tablas. Con $z=4$, la cota inferior de $R{=}7$ (17 en
+su propia corrida) queda elevada a 20 por la de $R{=}6$, y la de $R{=}10$ (29) a 30 por la
+de $R{=}9$. Las cotas inferiores obtenidas en la exploración prolongada superan
+holgadamente al mínimo certificado: la garantía pasa de $2^{28}$ a $2^{60}$ pares en
+$R = 9$ y $R = 10$.
+
+## Los dos casos frontera
+
+Dos casos quedaron cerca de cerrar tras cuatro horas cada uno:
+
+| Caso | Intervalo | Distancia |
+|---|:---:|:---:|
+| $R{=}5$, $z{=}4$ | $[18, 24]$ | 6 |
+| $R{=}4$, $z{=}8$ | $[15, 22]$ | 7 |
+
+Son los candidatos naturales para una ejecución más larga. La trayectoria hallada en
+$R{=}5$, $z{=}4$ es `2,4,4,4,10`: extiende exactamente la trayectoria óptima de cuatro
+rondas (`2,4,4,4`) con una quinta de 10 cajas, lo que sugiere que el óptimo de cinco rondas
+podría estar más cerca de 18 que de 24. La consolidación está implementada en
 `consolidar()` y verificada en `test_consolidacion_monotona_de_cotas`.
 
 **Las cotas superiores de $R \ge 4$ son flojas** (hasta 282 para $R{=}10$, $z{=}8$).

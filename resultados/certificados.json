@@ -1,0 +1,95 @@
+[
+  {
+    "z": 4,
+    "R": 1,
+    "cota_inferior": 1,
+    "cota_superior": 1,
+    "certificado": true,
+    "estado": "OPTIMAL",
+    "por_ronda": [
+      1
+    ],
+    "segundos": 0.3
+  },
+  {
+    "z": 4,
+    "R": 2,
+    "cota_inferior": 4,
+    "cota_superior": 4,
+    "certificado": true,
+    "estado": "OPTIMAL",
+    "por_ronda": [
+      2,
+      2
+    ],
+    "segundos": 0.9
+  },
+  {
+    "z": 4,
+    "R": 3,
+    "cota_inferior": 9,
+    "cota_superior": 9,
+    "certificado": true,
+    "estado": "OPTIMAL",
+    "por_ronda": [
+      2,
+      4,
+      3
+    ],
+    "segundos": 7.2
+  },
+  {
+    "z": 4,
+    "R": 4,
+    "cota_inferior": 14,
+    "cota_superior": 14,
+    "certificado": true,
+    "estado": "OPTIMAL",
+    "por_ronda": [
+      2,
+      4,
+      4,
+      4
+    ],
+    "segundos": 1565.0
+  },
+  {
+    "z": 8,
+    "R": 1,
+    "cota_inferior": 1,
+    "cota_superior": 1,
+    "certificado": true,
+    "estado": "OPTIMAL",
+    "por_ronda": [
+      1
+    ],
+    "segundos": 0.7
+  },
+  {
+    "z": 8,
+    "R": 2,
+    "cota_inferior": 4,
+    "cota_superior": 4,
+    "certificado": true,
+    "estado": "OPTIMAL",
+    "por_ronda": [
+      2,
+      2
+    ],
+    "segundos": 10.7
+  },
+  {
+    "z": 8,
+    "R": 3,
+    "cota_inferior": 10,
+    "cota_superior": 10,
+    "certificado": true,
+    "estado": "OPTIMAL",
+    "por_ronda": [
+      2,
+      4,
+      4
+    ],
+    "segundos": 117.6
+  }
+]

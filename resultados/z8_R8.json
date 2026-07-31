@@ -1,0 +1,31 @@
+[
+  {
+    "R": 8,
+    "z": 8,
+    "cajas_por_ronda": 40,
+    "estado": "FEASIBLE",
+    "certificado": false,
+    "cota_inferior": 21,
+    "cota_superior": 132,
+    "por_ronda": [
+      18,
+      22,
+      29,
+      8,
+      4,
+      6,
+      23,
+      22
+    ],
+    "segundos": 1809.3,
+    "limite": 1800,
+    "hilos": 32,
+    "cota_inferior_consolidada": 21,
+    "origen_cota": 8,
+    "cota_superior_consolidada": 132,
+    "origen_cota_superior": 8,
+    "exacto": false,
+    "prob_log2_garantizada": -42,
+    "pares_log2_garantizados": 42
+  }
+]

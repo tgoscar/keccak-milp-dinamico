@@ -33,12 +33,12 @@ variante es efectivamente más segura y en qué magnitud.
 | 2 | **4** (exacto) | 2,2 | certificado | $2^{8}$ |
 | 3 | **9** (exacto) | 2,4,3 | certificado | $2^{18}$ |
 | 4 | **14** (exacto) | 2,4,4,4 | certificado | $2^{28}$ |
-| 5 | $[14, 32]$ | - | cota | $2^{28}$ |
-| 6 | $[14, 37]$ | - | cota | $2^{28}$ |
-| 7 | $[14, 52]$ | - | cota | $2^{28}$ |
-| 8 | $[14, 63]$ | - | cota | $2^{28}$ |
-| 9 | $[14, 82]$ | - | cota | $2^{28}$ |
-| 10 | $[14, 94]$ | - | cota | $2^{28}$ |
+| 5 | $[18, 24]$ | 2,4,4,4,10 | cota | $2^{36}$ |
+| 6 | $[20, 36]$ | 8,8,7,5,4,4 | cota | $2^{40}$ |
+| 7 | $[20, 43]$ | 2,4,4,4,10,12,7 | cota | $2^{40}$ |
+| 8 | $[23, 49]$ | 3,3,12,17,2,4,4,4 | cota | $2^{46}$ |
+| 9 | $[30, 68]$ | 6,13,10,4,2,4,19,7,3 | cota | $2^{60}$ |
+| 10 | $[30, 75]$ | 8,10,4,2,4,17,12,6,6,6 | cota | $2^{60}$ |
 
 ### $z = 8$ (Keccak-f[200], 40 cajas-S por ronda)
 
@@ -47,18 +47,19 @@ variante es efectivamente más segura y en qué magnitud.
 | 1 | **1** (exacto) | 1 | certificado | $2^{2}$ |
 | 2 | **4** (exacto) | 2,2 | certificado | $2^{8}$ |
 | 3 | **10** (exacto) | 2,4,4 | certificado | $2^{20}$ |
-| 4 | $[10, 39]$ | - | cota | $2^{20}$ |
-| 5 | $[10, 53]$ | - | cota | $2^{20}$ |
-| 6 | $[10, 106]$ | - | cota | $2^{20}$ |
-| 7 | $[10, 139]$ | - | cota | $2^{20}$ |
-| 8 | $[10, 155]$ | - | cota | $2^{20}$ |
-| 9 | $[10, 195]$ | - | cota | $2^{20}$ |
-| 10 | $[10, 195]$ | - | cota | $2^{20}$ |
+| 4 | $[15, 22]$ | 10,4,4,4 | cota | $2^{30}$ |
+| 5 | $[15, 41]$ | 15,6,4,4,12 | cota | $2^{30}$ |
+| 6 | $[17, 67]$ | 10,4,4,7,21,21 | cota | $2^{34}$ |
+| 7 | $[17, 96]$ | 22,8,2,4,18,31,11 | cota | $2^{34}$ |
+| 8 | $[21, 119]$ | 18,22,29,8,4,6,23,22 | cota | $2^{42}$ |
+| 9 | $[21, 119]$ | 19,15,2,2,11,35,27,4,4 | cota | $2^{42}$ |
+| 10 | $[23, 164]$ | 18,4,4,11,34,20,29,... | cota | $2^{46}$ |
 
-Con $z = 4$ hay **cuatro casos con óptimo exacto certificado** ($R \le 4$); con $z = 8$,
-tres ($R \le 3$). Para el resto se reportan intervalos: el extremo inferior está
-demostrado y el superior es la mejor trayectoria hallada, que mejora con más tiempo de
-cómputo.
+**Siete de los veinte casos tienen óptimo exacto certificado**: $R \le 4$ con $z = 4$ y
+$R \le 3$ con $z = 8$. Para el resto se reportan intervalos, ambos extremos demostrados: la
+cota inferior por el solver y la superior por una trayectoria explícita. Los resultados
+provienen de unas 14 horas de cómputo con 32 hilos, y las cotas siguen mejorando con más
+tiempo.
 
 Tres puntos de lectura, detallados en [`docs/RESULTADOS.md`](docs/RESULTADOS.md):
 
@@ -69,8 +70,9 @@ sustenta una garantía.
 **Las cotas se propagan por monotonía**, y en ambos sentidos. Como $m(R)$ es no
 decreciente en $R$, el óptimo certificado $m(4) = 14$ garantiza $m(R) \ge 14$ para todo
 $R \ge 4$ sin resolver esos casos; simétricamente, una trayectoria hallada para $R$ rondas
-acota también las de menos rondas. Certificar un solo caso más elevó la garantía de
-$2^{18}$ a $2^{28}$ pares en las siete rondas siguientes.
+acota también las de menos rondas. La exploración prolongada elevó las cotas inferiores muy
+por encima de ese valor: con $z = 4$ la garantía alcanza $2^{60}$ pares en $R = 9$ y
+$R = 10$.
 
 **Las cotas superiores de los casos no certificados son flojas** y no deben leerse como
 estimaciones del óptimo. En $R = 3$ este proyecto llegó a manejar una cota de 18 cuando el

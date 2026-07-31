@@ -1,0 +1,27 @@
+[
+  {
+    "R": 4,
+    "z": 4,
+    "cajas_por_ronda": 20,
+    "estado": "OPTIMAL",
+    "certificado": true,
+    "cota_inferior": 14,
+    "cota_superior": 14,
+    "por_ronda": [
+      2,
+      4,
+      4,
+      4
+    ],
+    "segundos": 619.1,
+    "limite": 1800,
+    "hilos": 32,
+    "cota_inferior_consolidada": 14,
+    "origen_cota": 4,
+    "cota_superior_consolidada": 14,
+    "origen_cota_superior": 4,
+    "exacto": true,
+    "prob_log2_garantizada": -28,
+    "pares_log2_garantizados": 28
+  }
+]

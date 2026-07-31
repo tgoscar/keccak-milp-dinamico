@@ -443,10 +443,25 @@ complejidad de al menos $2^{28}$ pares en cualquier número superior de rondas, 
 resolver esos casos. Un único caso adicional elevó la garantía de $2^{18}$ a $2^{28}$ en
 las siete rondas siguientes.
 
-La Tabla~\ref{tab:ext} recoge la exploración hasta $R=10$ con $z=4$, con ambas cotas ya
-consolidadas según~\eqref{eq:monotonia}. Las cotas superiores de los casos no certificados
-son flojas y no deben interpretarse como estimaciones del óptimo; las inferiores, en
-cambio, están demostradas.
+Las Tablas~\ref{tab:ext} y~\ref{tab:ext8} recogen la exploración hasta $R=10$ para ambos
+tamaños de palabra, con las cotas ya consolidadas según~\eqref{eq:monotonia}. El conjunto
+supuso unas $14$~horas de cómputo con $32$ hilos: cuatro para cada uno de los dos casos
+frontera y media hora para el resto. Los dos extremos de cada intervalo están demostrados
+---la cota inferior por el solver, la superior por una trayectoria explícita---, si bien
+las superiores de los casos no certificados son flojas y no deben interpretarse como
+estimaciones del óptimo.
+
+El efecto de la consolidación se aprecia con claridad: con $z=4$, la cota inferior de
+$R=7$ ---17 en su propia ejecución--- queda elevada a $20$ por la de $R=6$, y la de $R=10$
+($29$) a $30$ por la de $R=9$. En sentido contrario, con $z=8$ la trayectoria de $119$
+cajas hallada en $R=9$ mejora la cota superior de $R=8$, que por sí sola era $132$. Las
+cotas inferiores alcanzadas superan holgadamente al mínimo certificado: la garantía pasa
+de $2^{28}$ a $2^{60}$ pares en $R=9$ y $R=10$.
+
+Dos casos quedaron próximos a cerrarse tras cuatro horas cada uno: $R=5$ con $z=4$, en
+$[18,24]$, y $R=4$ con $z=8$, en $[15,22]$. Resulta sugerente que la trayectoria hallada
+para $R=5$, $z=4$ sea $2,4,4,4,10$, es decir, la trayectoria óptima de cuatro rondas
+extendida con una quinta de diez cajas.
 
 \begin{table}[t]
 \caption{Extensión a $R\le10$ con $z=4$ (cotas consolidadas)}
@@ -460,21 +475,44 @@ $R$ & Mínimo & Estado & Pares garantizados \\
 2  & $4$         & certificado & $2^{8}$ \\
 3  & $9$         & certificado & $2^{18}$ \\
 4  & $14$        & certificado & $2^{28}$ \\
-5  & $[14,32]$   & cota        & $2^{28}$ \\
-6  & $[14,37]$   & cota        & $2^{28}$ \\
-7  & $[14,52]$   & cota        & $2^{28}$ \\
-8  & $[14,63]$   & cota        & $2^{28}$ \\
-9  & $[14,82]$   & cota        & $2^{28}$ \\
-10 & $[14,94]$   & cota        & $2^{28}$ \\
+5  & $[18,24]$   & cota        & $2^{36}$ \\
+6  & $[20,36]$   & cota        & $2^{40}$ \\
+7  & $[20,43]$   & cota        & $2^{40}$ \\
+8  & $[23,49]$   & cota        & $2^{46}$ \\
+9  & $[30,68]$   & cota        & $2^{60}$ \\
+10 & $[30,75]$   & cota        & $2^{60}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[t]
+\caption{Extensión a $R\le10$ con $z=8$ (cotas consolidadas)}
+\label{tab:ext8}
+\centering
+\begin{tabular}{@{}cccc@{}}
+\toprule
+$R$ & Mínimo & Estado & Pares garantizados \\
+\midrule
+1  & $1$         & certificado & $2^{2}$ \\
+2  & $4$         & certificado & $2^{8}$ \\
+3  & $10$        & certificado & $2^{20}$ \\
+4  & $[15,22]$   & cota        & $2^{30}$ \\
+5  & $[15,41]$   & cota        & $2^{30}$ \\
+6  & $[17,67]$   & cota        & $2^{34}$ \\
+7  & $[17,96]$   & cota        & $2^{34}$ \\
+8  & $[21,119]$  & cota        & $2^{42}$ \\
+9  & $[21,119]$  & cota        & $2^{42}$ \\
+10 & $[23,164]$  & cota        & $2^{46}$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 Para $z=8$, el óptimo certificado $m(3)=10$ garantiza $m(R)\ge10$ para todo $R\ge3$; las
-cotas superiores crecen hasta $195$ en $R=10$, lo que refleja la dificultad creciente del
+cotas superiores crecen hasta $164$ en $R=10$, lo que refleja la dificultad creciente del
 problema más que una estimación del mínimo. El contraste entre ambos tamaños de palabra es
-ilustrativo: con $z=4$ la certificación alcanza $R=4$, mientras que con $z=8$ ---el doble
-de cajas-S por ronda--- se detiene en $R=3$.
+ilustrativo: con $z=4$ la certificación alcanza $R=4$ y la garantía llega a $2^{60}$,
+mientras que con $z=8$ ---el doble de cajas-S por ronda--- la certificación se detiene en
+$R=3$ y la garantía en $2^{46}$.
 
 \section{Justificación de la variante}\label{sec:justificacion}
 
@@ -609,10 +647,10 @@ no certificadas, lo que ilustra el riesgo de emplear cotas superiores flojas com
 estimación de seguridad.
 \item La reducción del tamaño de palabra degrada la difusión de $\rho$, efecto que debe
 tenerse en cuenta al extrapolar los resultados a $w=64$.
-\item La monotonía de $m(R)$ permite convertir un único caso certificado en una garantía
-para todas las rondas superiores, lo que extiende el alcance del análisis a $R\le10$ sin
-resolver cada caso: con $z=4$, certificar $m(4)=14$ garantiza $2^{28}$ pares para todo
-$R\ge4$.
+\item La monotonía de $m(R)$ permite propagar las cotas en ambos sentidos y extender el
+alcance del análisis a $R\le10$. Siete de los veinte casos quedaron certificados y, en los
+restantes, las cotas inferiores demostradas elevan la garantía hasta $2^{60}$ pares con
+$z=4$ y $2^{46}$ con $z=8$.
 \item La reformulación de $\chi$ mediante envolvente convexa reduce el tamaño del modelo
 y mejora la cota, pero exige imponerse componente a componente; su versión escalar deja la
 restricción de la DDT vacía y produce resultados espurios.
